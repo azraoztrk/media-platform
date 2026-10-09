@@ -1,16 +1,24 @@
-from fastapi import Depends
+import jwt
+from app.security import (
+    hash_password,                                              #hash_password, kayıt sırasında parolayı hash’ler. verify_password: Giriş sırasında parolayı doğrular. create_access_token: Bilgileri doğru olan kullanıcıya JWT üretir.
+    verify_password,
+    create_access_token,
+    decode_access_token
+)   
 from sqlalchemy.orm import Session
-
 from app.database import get_db
-from app.models import Article as ArticleModel
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from app.models import Article as ArticleModel, User as UserModel      #UserModel, veritabanındaki kullanıcı tablosuna erişmemizi sağlar.
+from fastapi import FastAPI, Depends, HTTPException                    #HTTPException, örneğin aynı e-posta adresiyle tekrar kayıt yapılmasını uygun bir HTTP hata koduyla bildirmemizi sağlar.
+from pydantic import BaseModel, Field                                  #Field, parola için minimum uzunluk belirlememizi sağlar.
 
 app = FastAPI(
     title="Media Platform API",
     description="Media content management and tracking platform",
     version="1.0.0"
 )
+bearer_scheme = HTTPBearer()
 
 @app.get("/api/health")
 def health_check():
@@ -92,6 +100,14 @@ class ArticleUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
 
+class UserCreate(BaseModel):
+    email: str
+    password: str = Field(min_length=8)
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
 @app.patch("/api/articles/{article_id}")
 def patch_article(
     article_id: int,
@@ -149,3 +165,124 @@ def search_articles(keyword: str):
         "keyword": keyword,
         "message": f"'{keyword}' kelimesi için arama yapıldı"
     }
+
+@app.post("/api/auth/register", status_code=201)
+def register_user(
+    user: UserCreate,
+    db: Session = Depends(get_db)
+):
+    existing_user = db.query(UserModel).filter(
+        UserModel.email == user.email
+    ).first()
+
+    if existing_user:
+        raise HTTPException(
+            status_code=409,
+            detail="Email already registered"
+        )
+
+    hashed_password = hash_password(user.password)
+
+    db_user = UserModel(
+        email=user.email,
+        hashed_password=hashed_password
+    )
+
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+
+    return {
+        "message": "User registered successfully",
+        "user": {
+            "id": db_user.id,
+            "email": db_user.email,
+            "created_at": db_user.created_at
+        }
+    }
+
+@app.post("/api/auth/login")
+def login_user(
+    user: UserLogin,
+    db: Session = Depends(get_db)
+):
+    db_user = db.query(UserModel).filter(
+        UserModel.email == user.email
+    ).first()
+
+    if db_user is None or not verify_password(
+        user.password,
+        db_user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    access_token = create_access_token(
+        subject=db_user.email
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"                   #token’ın API isteklerinde Authorization: Bearer <token> biçiminde gönderileceğini belirtir.
+    }
+
+'''
+(satır 196-222 çalışma mantığı)
+Login işlemi şu sırayla çalışacak:
+1. E-posta adresini veritabanında arayacak.
+2. Kullanıcı bulunamazsa veya parola yanlışsa 401 Unauthorized döndürecek.
+3. E-posta ve parola doğruysa kullanıcıya özel JWT oluşturacak.
+4. Token’ı istemciye gönderecek.
+'''
+
+@app.get("/api/auth/me")
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db)
+):
+    token = credentials.credentials
+
+    try:
+        payload = decode_access_token(token)
+        email = payload.get("sub")
+
+        if email is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token"
+            )
+
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+    db_user = db.query(UserModel).filter(
+        UserModel.email == email
+    ).first()
+
+    if db_user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+
+    return {
+        "id": db_user.id,
+        "email": db_user.email,
+        "created_at": db_user.created_at
+    }
+
+'''
+(satır 241-278 çalışma mantığı)
+GET /api/auth/me, token üzerinden mevcut kullanıcıyı bulacak:
+1. JWT’nin imzasını ve geçerlilik süresini kontrol edecek.
+2. Token içindeki sub alanından e-posta adresini alacak.
+3. Kullanıcıyı veritabanında arayacak.
+4. Kullanıcı bilgilerini döndürecek.
+'''
+
