@@ -20,6 +20,40 @@ app = FastAPI(
 )
 bearer_scheme = HTTPBearer()
 
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: Session = Depends(get_db)
+):
+    token = credentials.credentials
+
+    try:
+        payload = decode_access_token(token)
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+    email = payload.get("sub")
+
+    if not email:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+    user = db.query(UserModel).filter(
+        UserModel.email == email
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+
+    return user
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
@@ -230,7 +264,7 @@ def login_user(
     }
 
 '''
-(satır 196-222 çalışma mantığı)
+(satır 238-264 çalışma mantığı)
 Login işlemi şu sırayla çalışacak:
 1. E-posta adresini veritabanında arayacak.
 2. Kullanıcı bulunamazsa veya parola yanlışsa 401 Unauthorized döndürecek.
@@ -239,50 +273,36 @@ Login işlemi şu sırayla çalışacak:
 '''
 
 @app.get("/api/auth/me")
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-    db: Session = Depends(get_db)
+def get_me(
+    current_user: UserModel = Depends(get_current_user)
 ):
-    token = credentials.credentials
-
-    try:
-        payload = decode_access_token(token)
-        email = payload.get("sub")
-
-        if email is None:
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid token"
-            )
-
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired token"
-        )
-
-    db_user = db.query(UserModel).filter(
-        UserModel.email == email
-    ).first()
-
-    if db_user is None:
-        raise HTTPException(
-            status_code=401,
-            detail="User not found"
-        )
-
     return {
-        "id": db_user.id,
-        "email": db_user.email,
-        "created_at": db_user.created_at
+        "id": current_user.id,
+        "email": current_user.email,
+        "role": current_user.role,
+        "created_at": current_user.created_at
     }
 
-'''
-(satır 241-278 çalışma mantığı)
-GET /api/auth/me, token üzerinden mevcut kullanıcıyı bulacak:
-1. JWT’nin imzasını ve geçerlilik süresini kontrol edecek.
-2. Token içindeki sub alanından e-posta adresini alacak.
-3. Kullanıcıyı veritabanında arayacak.
-4. Kullanıcı bilgilerini döndürecek.
-'''
+def require_roles(*allowed_roles):
+    def role_checker(
+        current_user: UserModel = Depends(get_current_user)
+    ):
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to access this resource"
+            )
 
+        return current_user
+
+    return role_checker
+
+@app.get("/api/admin/test")
+def admin_test(
+    current_user: UserModel = Depends(require_roles("ADMIN"))                    #depends: Yalnızca ADMIN rolüne sahip kullanıcıların erişmesine izin veriyor.
+):
+    return {
+        "message": "Welcome, Admin!",
+        "email": current_user.email,
+        "role": current_user.role
+    }
