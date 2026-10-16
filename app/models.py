@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -11,7 +11,7 @@ class Article(Base):
     title = Column(String(255), nullable=False)     #En fazla 255 karakterlik başlık
     content = Column(Text, nullable=False)      #Uzun metin içeriği
     created_at = Column(DateTime, server_default=func.now())      #Oluşturulma tarihi
-
+    is_active = Column(Boolean, nullable=False, default=True, server_default="true")
 
 class User(Base):
     __tablename__ = "users"
@@ -26,4 +26,3 @@ class User(Base):
         server_default="USER"                              #Veritabanında rol belirtilmeden kayıt oluşturulursa PostgreSQL varsayılan olarak USER değerini kullanır.
     )
     created_at = Column(DateTime, server_default=func.now())                    #Kullanıcının oluşturulma zamanını kaydeder.
-

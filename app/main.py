@@ -54,6 +54,20 @@ def get_current_user(
 
     return user
 
+def require_roles(*allowed_roles):
+    def role_checker(
+        current_user: UserModel = Depends(get_current_user)
+    ):
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail="You do not have permission to access this resource"
+            )
+
+        return current_user
+
+    return role_checker
+
 @app.get("/api/health")
 def health_check():
     return {"status": "ok"}
@@ -64,7 +78,9 @@ class Article(BaseModel):
     content: str
 
 @app.post("/api/articles")                        #Depends: Veritabanı oturumunu endpoint’e sağlar.
-def create_article(article: Article, db: Session = Depends(get_db)):
+def create_article(article: Article, db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_roles('EDITOR', 'ADMIN'))
+    ):
     db_article = ArticleModel(         #-->Yeni bir haber nesnesi oluşturur.
         title=article.title,
         content=article.content
@@ -85,8 +101,18 @@ def create_article(article: Article, db: Session = Depends(get_db)):
     }
 
 @app.get("/api/articles")
-def get_articles(db: Session = Depends(get_db)):
-    articles = db.query(ArticleModel).order_by(
+def get_articles(
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    query = db.query(ArticleModel)
+
+    if current_user.role == "USER":
+        query = query.filter(
+            ArticleModel.is_active == True
+        )
+
+    articles = query.order_by(
         ArticleModel.created_at.desc()
     ).all()
 
@@ -95,7 +121,8 @@ def get_articles(db: Session = Depends(get_db)):
             "id": article.id,
             "title": article.title,
             "content": article.content,
-            "created_at": article.created_at
+            "created_at": article.created_at,
+            "is_active": article.is_active
         }
         for article in articles
     ]
@@ -104,7 +131,8 @@ def get_articles(db: Session = Depends(get_db)):
 def update_article(
     article_id: int,
     article: Article,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_roles("EDITOR", "ADMIN"))
 ):
     db_article = db.query(ArticleModel).filter(
         ArticleModel.id == article_id                 #Burada(satır 67, 68, 69) URL’den gelen article_id değerine göre PostgreSQL’deki haberi arıyoruz.
@@ -129,7 +157,6 @@ def update_article(
         }
     }
 
-
 class ArticleUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
@@ -146,7 +173,8 @@ class UserLogin(BaseModel):
 def patch_article(
     article_id: int,
     article: ArticleUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_roles("EDITOR", "ADMIN"))
 ):
     db_article = db.query(ArticleModel).filter(
         ArticleModel.id == article_id
@@ -173,10 +201,41 @@ def patch_article(
         }
     }
 
+@app.patch("/api/articles/{article_id}/status")
+def update_article_status(
+    article_id: int,
+    is_active: bool,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(
+        require_roles("EDITOR", "ADMIN")
+    )
+):
+    article = db.query(ArticleModel).filter(
+        ArticleModel.id == article_id
+    ).first()
+
+    if not article:
+        raise HTTPException(
+            status_code=404,
+            detail="Article not found"
+        )
+
+    article.is_active = is_active
+    db.commit()
+    db.refresh(article)
+
+    return {
+        "message": "Article status updated successfully",
+        "id": article.id,
+        "title": article.title,
+        "is_active": article.is_active
+    }
+
 @app.delete("/api/articles/{article_id}")
 def delete_article(
     article_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_roles('ADMIN'))          #Şu satır, yalnızca ADMIN rolündeki kullanıcıların silme işlemi yapabilmesini sağlar
 ):
     db_article = db.query(ArticleModel).filter(                #db.query(...).filter(...) → Silmek istediğimiz haberi bulur.
         ArticleModel.id == article_id
@@ -282,20 +341,6 @@ def get_me(
         "role": current_user.role,
         "created_at": current_user.created_at
     }
-
-def require_roles(*allowed_roles):
-    def role_checker(
-        current_user: UserModel = Depends(get_current_user)
-    ):
-        if current_user.role not in allowed_roles:
-            raise HTTPException(
-                status_code=403,
-                detail="You do not have permission to access this resource"
-            )
-
-        return current_user
-
-    return role_checker
 
 @app.get("/api/admin/test")
 def admin_test(
