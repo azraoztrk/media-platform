@@ -8,6 +8,7 @@ from app.security import (
 from sqlalchemy.orm import Session
 from app.database import get_db
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.rss_service import import_rss_articles
 
 from app.models import Article as ArticleModel, User as UserModel      #UserModel, veritabanındaki kullanıcı tablosuna erişmemizi sağlar.
 from fastapi import FastAPI, Depends, HTTPException                    #HTTPException, örneğin aynı e-posta adresiyle tekrar kayıt yapılmasını uygun bir HTTP hata koduyla bildirmemizi sağlar.
@@ -351,3 +352,10 @@ def admin_test(
         "email": current_user.email,
         "role": current_user.role
     }
+
+@app.post("/api/rss/import")                        #RSS haberlerini içe aktarır.
+def import_rss(
+    db: Session = Depends(get_db),                  #get_db: PostgreSQL bağlantısını sağlar.
+    current_user: UserModel = Depends(require_roles("EDITOR", "ADMIN"))                #require_roles("EDITOR", "ADMIN"): Yalnızca EDITOR ve ADMIN rollerine izin verir.
+):
+    return import_rss_articles(db)                  #mport_rss_articles(db): Haberleri alıp veritabanına kaydeder.

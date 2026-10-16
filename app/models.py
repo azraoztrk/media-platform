@@ -12,6 +12,7 @@ class Article(Base):
     content = Column(Text, nullable=False)      #Uzun metin içeriği
     created_at = Column(DateTime, server_default=func.now())      #Oluşturulma tarihi
     is_active = Column(Boolean, nullable=False, default=True, server_default="true")
+    source_url = Column(String(500), unique=True, nullable=True)
 
 class User(Base):
     __tablename__ = "users"
