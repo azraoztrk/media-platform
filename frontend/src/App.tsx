@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import './App.css'
 
 const categories = [
@@ -115,7 +116,283 @@ function BookmarkIcon() {
   )
 }
 
+type AuthPageProps = {
+  mode: 'login' | 'register'
+}
+
+function AuthPage({ mode }: AuthPageProps) {
+  const isLogin = mode === 'login'
+
+  return (
+    <div className="auth-page">
+      <header className="auth-header">
+        <a className="brand" href="#">
+          media space<span>.</span>
+        </a>
+
+        <a className="auth-back-link" href="#">
+          ← Ana sayfaya dön
+        </a>
+      </header>
+
+      <main className="auth-main">
+        <div className="auth-intro">
+          <span className="section-eyebrow">
+            MEDIA SPACE ÜYELİĞİ
+          </span>
+
+          <h1>
+            {isLogin ? (
+              <>
+                Yeniden
+                <br />
+                hoş geldin.
+              </>
+            ) : (
+              <>
+                Hikâyelerin
+                <br />
+                bir parçası ol.
+              </>
+            )}
+          </h1>
+
+          <p>
+            {isLogin
+              ? 'Dünyayı değiştiren fikirleri ve hikâyeleri keşfetmeye devam et.'
+              : 'Kendi hesabını oluştur, ilgini çeken hikâyeleri keşfet.'}
+          </p>
+        </div>
+
+        <form
+          className="auth-form"
+          onSubmit={(event) => event.preventDefault()}
+        >
+          {!isLogin && (
+            <div className="auth-name-fields">
+              <label>
+                Ad
+                <input
+                  type="text"
+                  name="firstName"
+                  placeholder="Adın"
+                  autoComplete="given-name"
+                  required
+                />
+              </label>
+
+              <label>
+                Soyad
+                <input
+                  type="text"
+                  name="lastName"
+                  placeholder="Soyadın"
+                  autoComplete="family-name"
+                  required
+                />
+              </label>
+            </div>
+          )}
+
+          <label>
+            E-posta adresi
+            <input
+              type="email"
+              name="email"
+              placeholder="ornek@email.com"
+              autoComplete="email"
+              required
+            />
+          </label>
+
+          <label>
+            Şifre
+            <input
+              type="password"
+              name="password"
+              placeholder="Şifreni gir"
+              autoComplete={isLogin ? 'current-password' : 'new-password'}
+              minLength={8}
+              required
+            />
+          </label>
+
+          {!isLogin && (
+            <label>
+              Şifre tekrarı
+              <input
+                type="password"
+                name="confirmPassword"
+                placeholder="Şifreni tekrar gir"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+            </label>
+          )}
+
+          {isLogin && (
+            <a className="forgot-password" href="#forgot-password">
+              Şifremi unuttum
+            </a>
+          )}
+
+          <button className="auth-submit" type="submit">
+            {isLogin ? 'Giriş yap' : 'Hesap oluştur'}
+            <span aria-hidden="true">↗</span>
+          </button>
+
+          <p className="auth-switch">
+            {isLogin ? 'Henüz hesabın yok mu?' : 'Zaten hesabın var mı?'}{' '}
+            <a href={isLogin ? '#register' : '#login'}>
+              {isLogin ? 'Kayıt ol' : 'Giriş yap'}
+            </a>
+          </p>
+        </form>
+
+        <div className="auth-bottom-note">
+          FİKİRLERİN VE HİKÂYELERİN BULUŞMA NOKTASI
+        </div>
+      </main>
+
+      <footer className="auth-footer">
+        <span>© 2026 MEDIA SPACE</span>
+        <span>Dünyaya farklı bir açıdan bak.</span>
+      </footer>
+    </div>
+  )
+}
+
+function ArticleDetail() {
+  const [isFavorite, setIsFavorite] = useState(false)
+  return (
+    <div className="article-page">
+      <header className="article-header">
+        <a className="brand" href="#">
+          media space<span>.</span>
+        </a>
+        <a className="article-back-link" href="#">
+          ← Ana sayfaya dön
+        </a>
+      </header>
+      <main className="article-main">
+        <div className="article-heading">
+          <span className="section-eyebrow">
+            TEKNOLOJİ · YAPAY ZEKÂ
+          </span>
+          <h1>
+            Yapay Zekâ Çağında
+            <br />
+            Yazılım Geliştirmek
+          </h1>
+          <p className="article-spot">
+            Yapay zekâ yazılım geliştirme süreçlerini dönüştürüyor.
+            Peki bu dönüşüm, yazılımcıların çalışma biçimini ve
+            problem çözme yaklaşımını nasıl etkiliyor?
+          </p>
+          <div className="article-meta">
+            <div>
+              <span className="article-meta-label">YAZAR</span>
+              <span>Media Space Editörleri</span>
+            </div>
+            <div>
+              <span className="article-meta-label">YAYIN TARİHİ</span>
+              <span>16 Ekim 2026</span>
+            </div>
+            <div>
+              <span className="article-meta-label">OKUMA SÜRESİ</span>
+              <span>4 dakika</span>
+            </div>
+          </div>
+        </div>
+        <img
+          className="article-cover"
+          src="https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=85"
+          alt="Yapay zekâ ve dijital teknolojileri temsil eden görsel"
+        />
+        <div className="article-content">
+          <div className="article-content-top">
+            <span className="section-eyebrow">MAKALE</span>
+            <button
+              className={`article-favorite ${isFavorite ? 'is-favorite' : ''}`}
+              onClick={() => setIsFavorite(!isFavorite)}
+              type="button"
+            >
+              {isFavorite ? '♥ Favorilere eklendi' : '♡ Favorilere ekle'}
+            </button>
+          </div>
+          <p className="article-lead">
+            Yazılım geliştirme, yalnızca kod yazmaktan ibaret değil.
+            Problemleri anlamak, doğru çözümleri tasarlamak ve
+            geliştirilen sistemleri sürdürülebilir hâle getirmek
+            de bu sürecin önemli parçaları.
+          </p>
+          <h2>Yazılım geliştirme süreci nasıl değişiyor?</h2>
+          <p>
+            Yapay zekâ destekli araçlar, geliştiricilerin kod üretme,
+            hata ayıklama ve teknik dokümantasyon hazırlama gibi
+            görevlerinde yardımcı olabiliyor. Böylece bazı rutin
+            işler daha kısa sürede tamamlanabiliyor.
+          </p>
+          <p>
+            Ancak bir aracın kod üretebilmesi, üretilen kodun her
+            durumda doğru, güvenli veya ihtiyaçlara uygun olduğu
+            anlamına gelmiyor. Geliştiricinin çıktıyı değerlendirmesi,
+            test etmesi ve arkasındaki mantığı anlaması hâlâ önemli.
+          </p>
+          <h2>Önemli olan yalnızca kod yazmak değil</h2>
+          <p>
+            İyi bir yazılım geliştirmek; gereksinimleri anlamayı,
+            veri yapıları ve algoritmalar hakkında düşünmeyi,
+            sistem tasarlamayı ve farklı çözüm seçeneklerini
+            değerlendirmeyi gerektiriyor.
+          </p>
+          <p>
+            Bu nedenle yapay zekâyı bir alternatiften çok,
+            doğru kullanıldığında geliştirme sürecini destekleyen
+            bir araç olarak değerlendirmek daha anlamlı.
+          </p>
+          <div className="article-end">
+            <span>MEDIA SPACE</span>
+            <p>Fikirlerin ve hikâyelerin buluşma noktası.</p>
+          </div>
+        </div>
+      </main>
+      <footer className="article-footer">
+        <span>© 2026 MEDIA SPACE</span>
+        <a href="#">Ana sayfaya dön ↑</a>
+      </footer>
+    </div>
+  )
+}
+
 function App() {
+  const [currentPage, setCurrentPage] = useState(
+    window.location.hash
+  )
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setCurrentPage(window.location.hash)
+    }
+
+    window.addEventListener('hashchange', handleHashChange)
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange)
+    }
+  }, [])
+
+  if (currentPage === '#login') {
+    return <AuthPage mode="login" />
+  }
+
+  if (currentPage === '#register') {
+    return <AuthPage mode="register" />
+  }
+
+  if (currentPage === '#article') return <ArticleDetail />
+
   const today = new Intl.DateTimeFormat('tr-TR', {
     day: 'numeric',
     month: 'long',
@@ -141,7 +418,9 @@ function App() {
           <button className="search-button" aria-label="Ara" title="Ara">
             <SearchIcon />
           </button>
-          <button className="login-button">Giriş yap ↗</button>
+          <a className="login-button" href="#login">
+            Giriş yap ↗
+          </a>
         </div>
       </header>
 
@@ -209,7 +488,7 @@ function App() {
             {trendingArticles.map((article) => (
               <a
                 className="trending-card"
-                href="#latest"
+                href="#article"
                 key={article.number}
               >
                 <img src={article.image} alt="" loading="lazy" />
@@ -242,7 +521,7 @@ function App() {
           <div className="article-grid">
             {articles.map((article, index) => (
               <article className="article-card" key={article.title}>
-                <a className="article-image-link" href="#latest">
+                <a className="article-image-link" href="#article">
                   <img
                     src={article.image}
                     alt=""
@@ -271,7 +550,7 @@ function App() {
                   </div>
 
                   <h3>
-                    <a href="#latest">{article.title}</a>
+                    <a href="#article">{article.title}</a>
                   </h3>
 
                   <p>{article.description}</p>
