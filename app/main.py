@@ -12,6 +12,7 @@ from app.rss_service import import_rss_articles
 
 from app.models import Article as ArticleModel, User as UserModel      #UserModel, veritabanındaki kullanıcı tablosuna erişmemizi sağlar.
 from fastapi import FastAPI, Depends, HTTPException                    #HTTPException, örneğin aynı e-posta adresiyle tekrar kayıt yapılmasını uygun bir HTTP hata koduyla bildirmemizi sağlar.
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field                                  #Field, parola için minimum uzunluk belirlememizi sağlar.
 
 app = FastAPI(
@@ -19,6 +20,18 @@ app = FastAPI(
     description="Media content management and tracking platform",
     version="1.0.0"
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 bearer_scheme = HTTPBearer()
 
 def get_current_user(
