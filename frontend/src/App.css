@@ -1324,3 +1324,168 @@ img {
     align-items: flex-start;
   }
 }
+/* Favori butonu durumu */
+
+.bookmark-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}
+
+.bookmark-button.is-favorite {
+  color: #444444;
+}
+
+.bookmark-button svg {
+  transition: transform 180ms ease;
+}
+
+.bookmark-button:hover svg {
+  transform: scale(1.12);
+}
+
+.article-content-top .bookmark-button {
+  flex-shrink: 0;
+}
+
+.article-content-top .bookmark-button.is-favorite {
+  border-color: var(--black);
+}
+
+/* Favori kalbi dolu göster */
+.bookmark-button.is-favorite svg {
+  fill: currentColor;
+}
+
+/* =====================================
+   FAVORİLER SAYFASI
+   ===================================== */
+
+.favorites-page {
+  min-height: 100vh;
+  background: #fff;
+}
+
+/* Sayfa içeriğini ortala ve kenarlardan uzaklaştır */
+.favorites-main {
+  width: min(1200px, calc(100% - 100px));
+  margin: 0 auto;
+  padding: 65px 0 90px;
+}
+
+/* Başlık alanı */
+.favorites-heading {
+  margin-bottom: 45px;
+}
+
+.favorites-heading h1 {
+  margin: 14px 0 16px;
+  font-size: clamp(38px, 5vw, 58px);
+  letter-spacing: -1.8px;
+  line-height: 1.1;
+}
+
+.favorites-heading h1 span {
+  color: #444;
+}
+
+.favorites-heading > p {
+  margin: 0;
+  color: #666;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+/* Favori haberlerin yerleşimi */
+.favorites-main .article-grid {
+  margin-top: 0;
+  gap: 40px 25px;
+}
+
+/* Haber görseli ile başlık arasındaki mesafe */
+.favorites-main .article-body {
+  padding-top: 18px;
+}
+
+/* Haber başlığının konumu */
+.favorites-main .article-card h3 {
+  margin-top: 14px;
+  line-height: 1.4;
+}
+
+/* Favori bulunmadığında görünen alan */
+.favorites-empty {
+  margin-top: 20px;
+  padding: 65px 25px;
+  border: 1px solid var(--line);
+  text-align: center;
+}
+
+.favorites-empty-icon {
+  margin-bottom: 15px;
+  color: #444;
+  font-size: 42px;
+}
+
+.favorites-empty h2 {
+  margin: 0 0 12px;
+  font-size: 24px;
+}
+
+.favorites-empty p {
+  max-width: 440px;
+  margin: 0 auto 25px;
+  color: #666;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.favorites-home-link {
+  display: inline-block;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #111;
+  color: #111;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+/* Üst bağlantı */
+.favorites-nav-link {
+  color: #111;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.favorites-nav-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Mobil uyumluluk */
+@media (max-width: 700px) {
+  .favorites-main {
+    width: calc(100% - 36px);
+    padding: 42px 0 60px;
+  }
+
+  .favorites-heading {
+    margin-bottom: 30px;
+  }
+
+  .favorites-heading h1 {
+    font-size: 40px;
+  }
+
+  .favorites-main .article-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .favorites-empty {
+    padding: 45px 18px;
+  }
+}

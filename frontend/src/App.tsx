@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type SyntheticEvent } from 'react'
 import './App.css'
 
 const categories = [
@@ -13,6 +13,7 @@ const categories = [
 const trendingArticles = [
   {
     number: '01',
+    id: 'technology-1',
     category: 'TEKNOLOJİ',
     title: 'Yapay zekâ yazılım dünyasını nasıl değiştiriyor?',
     image:
@@ -20,6 +21,7 @@ const trendingArticles = [
   },
   {
     number: '02',
+    id: 'science-1',
     category: 'BİLİM',
     title: 'Bilim dünyasında yeni keşifler',
     image:
@@ -27,6 +29,7 @@ const trendingArticles = [
   },
   {
     number: '03',
+    id: 'business-1',
     category: 'İŞ DÜNYASI',
     title: 'Dijital dönüşümün yeni dönemi',
     image:
@@ -36,6 +39,7 @@ const trendingArticles = [
 
 const articles = [
   {
+    id: 'technology-1',
     category: 'TEKNOLOJİ',
     title: 'Yapay zekâ çağında yazılım geliştirmenin değişen yüzü',
     description:
@@ -45,6 +49,7 @@ const articles = [
     time: '6 dk.',
   },
   {
+    id: 'science-1',
     category: 'BİLİM',
     title: 'Evren hakkında bildiklerimizi değiştiren keşifler',
     description:
@@ -54,6 +59,7 @@ const articles = [
     time: '4 dk.',
   },
   {
+    id: 'business-1',
     category: 'İŞ DÜNYASI',
     title: 'Geleceğin çalışma hayatı nasıl şekilleniyor?',
     description:
@@ -63,6 +69,7 @@ const articles = [
     time: '5 dk.',
   },
   {
+    id: 'culture-1',
     category: 'KÜLTÜR & SANAT',
     title: 'Şehirlerin hikâyelerini anlatan mekânlar',
     description:
@@ -72,6 +79,7 @@ const articles = [
     time: '3 dk.',
   },
   {
+    id: 'science-2',
     category: 'BİLİM',
     title: 'Okyanusların derinliklerinde keşfedilmeyi bekleyenler',
     description:
@@ -81,6 +89,7 @@ const articles = [
     time: '7 dk.',
   },
   {
+    id: 'news-1',
     category: 'GÜNDEM',
     title: 'Daha yaşanabilir şehirler için yeni fikirler',
     description:
@@ -118,10 +127,114 @@ function BookmarkIcon() {
 
 type AuthPageProps = {
   mode: 'login' | 'register'
+  onLogin: () => void
 }
 
-function AuthPage({ mode }: AuthPageProps) {
+function AuthPage({ mode, onLogin }: AuthPageProps) {
   const isLogin = mode === 'login'
+
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  async function handleSubmit(
+    event: SyntheticEvent<HTMLFormElement>
+  ) {
+    event.preventDefault()
+
+    setError('')
+    setSuccess('')
+    setIsLoading(true)
+
+    const formData = new FormData(event.currentTarget)
+
+    const email = String(formData.get('email') ?? '')
+      .trim()
+      .toLowerCase()
+
+    const password = String(formData.get('password') ?? '')
+
+    const confirmPassword = String(
+      formData.get('confirmPassword') ?? ''
+    )
+
+    if (!isLogin && password !== confirmPassword) {
+      setError('Girdiğin şifreler birbiriyle eşleşmiyor.')
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const endpoint = isLogin
+        ? 'http://127.0.0.1:8000/api/auth/login'
+        : 'http://127.0.0.1:8000/api/auth/register'
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          throw new Error(
+            'Bu e-posta adresiyle daha önce kayıt oluşturulmuş.'
+          )
+        }
+
+        if (response.status === 401) {
+          throw new Error(
+            'E-posta adresi veya şifre hatalı.'
+          )
+        }
+
+        if (response.status === 422) {
+          throw new Error(
+            'Girdiğin bilgileri kontrol edip tekrar dene.'
+          )
+        }
+
+        throw new Error(
+          data.detail || 'Bir hata oluştu. Lütfen tekrar dene.'
+        )
+      }
+
+      if (isLogin) {
+        localStorage.setItem(
+          'mediaSpaceToken',
+          data.access_token
+        )
+
+        onLogin()
+        window.location.hash = ''
+      } else {
+        setSuccess(
+          'Hesabın başarıyla oluşturuldu! Şimdi giriş yapabilirsin.'
+        )
+      }
+    } catch (err) {
+      if (err instanceof TypeError) {
+        setError(
+          'Sunucuya bağlanılamadı. Backend sunucusunun çalıştığını kontrol et.'
+        )
+      } else {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Beklenmeyen bir hata oluştu.'
+        )
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="auth-page">
@@ -166,34 +279,8 @@ function AuthPage({ mode }: AuthPageProps) {
 
         <form
           className="auth-form"
-          onSubmit={(event) => event.preventDefault()}
+          onSubmit={handleSubmit}
         >
-          {!isLogin && (
-            <div className="auth-name-fields">
-              <label>
-                Ad
-                <input
-                  type="text"
-                  name="firstName"
-                  placeholder="Adın"
-                  autoComplete="given-name"
-                  required
-                />
-              </label>
-
-              <label>
-                Soyad
-                <input
-                  type="text"
-                  name="lastName"
-                  placeholder="Soyadın"
-                  autoComplete="family-name"
-                  required
-                />
-              </label>
-            </div>
-          )}
-
           <label>
             E-posta adresi
             <input
@@ -211,7 +298,9 @@ function AuthPage({ mode }: AuthPageProps) {
               type="password"
               name="password"
               placeholder="Şifreni gir"
-              autoComplete={isLogin ? 'current-password' : 'new-password'}
+              autoComplete={
+                isLogin ? 'current-password' : 'new-password'
+              }
               minLength={8}
               required
             />
@@ -232,18 +321,45 @@ function AuthPage({ mode }: AuthPageProps) {
           )}
 
           {isLogin && (
-            <a className="forgot-password" href="#forgot-password">
+            <a
+              className="forgot-password"
+              href="#forgot-password"
+            >
               Şifremi unuttum
             </a>
           )}
 
-          <button className="auth-submit" type="submit">
-            {isLogin ? 'Giriş yap' : 'Hesap oluştur'}
+          {error && (
+            <p role="alert" style={{ color: '#c0392b' }}>
+              {error}
+            </p>
+          )}
+
+          {success && (
+            <p role="status" style={{ color: '#218838' }}>
+              {success}
+            </p>
+          )}
+
+          <button
+            className="auth-submit"
+            type="submit"
+            disabled={isLoading}
+          >
+            {isLoading
+              ? 'Lütfen bekle...'
+              : isLogin
+                ? 'Giriş yap'
+                : 'Hesap oluştur'}
+
             <span aria-hidden="true">↗</span>
           </button>
 
           <p className="auth-switch">
-            {isLogin ? 'Henüz hesabın yok mu?' : 'Zaten hesabın var mı?'}{' '}
+            {isLogin
+              ? 'Henüz hesabın yok mu?'
+              : 'Zaten hesabın var mı?'}{' '}
+
             <a href={isLogin ? '#register' : '#login'}>
               {isLogin ? 'Kayıt ol' : 'Giriş yap'}
             </a>
@@ -263,101 +379,316 @@ function AuthPage({ mode }: AuthPageProps) {
   )
 }
 
+const FAVORITES_KEY = 'mediaSpaceFavorites'
+
+function getFavoriteIds(): string[] {
+  try {
+    const savedFavorites = localStorage.getItem(FAVORITES_KEY)
+
+    return savedFavorites ? JSON.parse(savedFavorites) : []
+  } catch {
+    return []
+  }
+}
+
+function toggleFavorite(articleId: string): boolean {
+  const favorites = getFavoriteIds()
+
+  const updatedFavorites = favorites.includes(articleId)
+    ? favorites.filter((id) => id !== articleId)
+    : [...favorites, articleId]
+
+  localStorage.setItem(
+    FAVORITES_KEY,
+    JSON.stringify(updatedFavorites)
+  )
+
+  window.dispatchEvent(new Event('favoritesUpdated'))
+
+  return updatedFavorites.includes(articleId)
+}
+
+type FavoriteButtonProps = {
+  articleId: string
+}
+
+function FavoriteButton({ articleId }: FavoriteButtonProps) {
+  const [isFavorite, setIsFavorite] = useState(() =>
+    getFavoriteIds().includes(articleId)
+  )
+
+  useEffect(() => {
+    const updateFavorite = () => {
+      setIsFavorite(getFavoriteIds().includes(articleId))
+    }
+
+    window.addEventListener('favoritesUpdated', updateFavorite)
+
+    return () => {
+      window.removeEventListener('favoritesUpdated', updateFavorite)
+    }
+  }, [articleId])
+
+  const handleClick = () => {
+    const newFavoriteState = toggleFavorite(articleId)
+    setIsFavorite(newFavoriteState)
+  }
+
+  return (
+    <button
+      className={`bookmark-button ${isFavorite ? 'is-favorite' : ''}`}
+      aria-label={
+        isFavorite
+          ? 'Favorilerimden çıkar'
+          : 'Favorilerime ekle'
+      }
+      title={
+        isFavorite
+          ? 'Favorilerimden çıkar'
+          : 'Favorilerime ekle'
+      }
+      onClick={handleClick}
+      type="button"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="19"
+        height="19"
+        viewBox="0 0 24 24"
+        fill={isFavorite ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
+      </svg>
+    </button>
+  )
+}
+
+function FavoritesPage() {
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(
+    () => getFavoriteIds()
+  )
+
+  useEffect(() => {
+    const updateFavorites = () => {
+      setFavoriteIds(getFavoriteIds())
+    }
+
+    window.addEventListener('favoritesUpdated', updateFavorites)
+
+    return () => {
+      window.removeEventListener('favoritesUpdated', updateFavorites)
+    }
+  }, [])
+
+  const favoriteArticles = articles.filter((article) =>
+    favoriteIds.includes(article.id)
+  )
+
+  return (
+    <div className="favorites-page">
+      <header className="article-header">
+        <a className="brand" href="#">
+          media space<span>.</span>
+        </a>
+
+        <a className="article-back-link" href="#">
+          ← Ana sayfaya dön
+        </a>
+      </header>
+
+      <main className="favorites-main">
+        <div className="favorites-heading">
+          <span className="section-eyebrow">
+            KAYDETTİĞİN HİKÂYELER
+          </span>
+
+          <h1>Favorilerim<span></span></h1>
+
+          <p>
+            Daha sonra okumak istediğin hikâyeler burada.
+          </p>
+        </div>
+
+        {favoriteArticles.length === 0 ? (
+          <div className="favorites-empty">
+            <div className="favorites-empty-icon">♡</div>
+
+            <h2>Henüz favorin yok.</h2>
+
+            <p>
+              Beğendiğin haberlerin üzerindeki kalbe tıklayarak
+              onları burada saklayabilirsin.
+            </p>
+
+            <a className="favorites-home-link" href="#latest">
+              Haberleri keşfet ↗
+            </a>
+          </div>
+        ) : (
+          <div className="article-grid">
+            {favoriteArticles.map((article, index) => (
+              <article className="article-card" key={article.id}>
+                <a
+                  className="article-image-link"
+                  href={`#article/${article.id}`}
+                >
+                  <img
+                    src={article.image}
+                    alt=""
+                    loading="lazy"
+                    className="article-image"
+                  />
+
+                  <span className="article-index">
+                    {String(index + 1).padStart(2, '0')}
+                  </span>
+                </a>
+
+                <div className="article-body">
+                  <div className="article-meta">
+                    <span className="article-category">
+                      {article.category}
+                    </span>
+
+                    <FavoriteButton articleId={article.id} />
+                  </div>
+
+                  <h3>
+                    <a href={`#article/${article.id}`}>
+                      {article.title}
+                    </a>
+                  </h3>
+
+                  <p>{article.description}</p>
+
+                  <div className="article-footer">
+                    <span>MEDIA SPACE EDİTÖRÜ</span>
+                    <span>{article.time} okuma</span>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+
+      <footer className="article-footer">
+        <span>© 2026 MEDIA SPACE</span>
+        <a href="#">Ana sayfaya dön ↑</a>
+      </footer>
+    </div>
+  )
+}
+
 function ArticleDetail() {
-  const [isFavorite, setIsFavorite] = useState(false)
+  const articleId = window.location.hash.split('/')[1]
+
+  const article = articles.find(
+    (item) => item.id === articleId
+  )
+
+  if (!article) {
+    return (
+      <div className="article-page">
+        <main className="article-main">
+          <h1>Haber bulunamadı.</h1>
+          <a href="#">Ana sayfaya dön</a>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="article-page">
       <header className="article-header">
         <a className="brand" href="#">
           media space<span>.</span>
         </a>
+
         <a className="article-back-link" href="#">
           ← Ana sayfaya dön
         </a>
       </header>
+
       <main className="article-main">
         <div className="article-heading">
           <span className="section-eyebrow">
-            TEKNOLOJİ · YAPAY ZEKÂ
+            {article.category}
           </span>
-          <h1>
-            Yapay Zekâ Çağında
-            <br />
-            Yazılım Geliştirmek
-          </h1>
+
+          <h1>{article.title}</h1>
+
           <p className="article-spot">
-            Yapay zekâ yazılım geliştirme süreçlerini dönüştürüyor.
-            Peki bu dönüşüm, yazılımcıların çalışma biçimini ve
-            problem çözme yaklaşımını nasıl etkiliyor?
+            {article.description}
           </p>
+
           <div className="article-meta">
             <div>
               <span className="article-meta-label">YAZAR</span>
               <span>Media Space Editörleri</span>
             </div>
+
             <div>
-              <span className="article-meta-label">YAYIN TARİHİ</span>
-              <span>16 Ekim 2026</span>
+              <span className="article-meta-label">
+                YAYIN TARİHİ
+              </span>
+              <span>17 Ekim 2026</span>
             </div>
+
             <div>
-              <span className="article-meta-label">OKUMA SÜRESİ</span>
-              <span>4 dakika</span>
+              <span className="article-meta-label">
+                OKUMA SÜRESİ
+              </span>
+              <span>{article.time}</span>
             </div>
           </div>
         </div>
+
         <img
           className="article-cover"
-          src="https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1600&q=85"
-          alt="Yapay zekâ ve dijital teknolojileri temsil eden görsel"
+          src={article.image}
+          alt={article.title}
         />
+
         <div className="article-content">
           <div className="article-content-top">
             <span className="section-eyebrow">MAKALE</span>
-            <button
-              className={`article-favorite ${isFavorite ? 'is-favorite' : ''}`}
-              onClick={() => setIsFavorite(!isFavorite)}
-              type="button"
-            >
-              {isFavorite ? '♥ Favorilere eklendi' : '♡ Favorilere ekle'}
-            </button>
+
+            <FavoriteButton articleId={article.id} />
           </div>
+
           <p className="article-lead">
-            Yazılım geliştirme, yalnızca kod yazmaktan ibaret değil.
-            Problemleri anlamak, doğru çözümleri tasarlamak ve
-            geliştirilen sistemleri sürdürülebilir hâle getirmek
-            de bu sürecin önemli parçaları.
+            {article.description}
           </p>
-          <h2>Yazılım geliştirme süreci nasıl değişiyor?</h2>
+
+          <h2>{article.title}</h2>
+
           <p>
-            Yapay zekâ destekli araçlar, geliştiricilerin kod üretme,
-            hata ayıklama ve teknik dokümantasyon hazırlama gibi
-            görevlerinde yardımcı olabiliyor. Böylece bazı rutin
-            işler daha kısa sürede tamamlanabiliyor.
+            {article.description} Bu konudaki gelişmeleri
+            anlamak için mevcut bilgileri, yeni araştırmaları
+            ve farklı bakış açılarını birlikte değerlendirmek
+            gerekiyor.
           </p>
+
           <p>
-            Ancak bir aracın kod üretebilmesi, üretilen kodun her
-            durumda doğru, güvenli veya ihtiyaçlara uygun olduğu
-            anlamına gelmiyor. Geliştiricinin çıktıyı değerlendirmesi,
-            test etmesi ve arkasındaki mantığı anlaması hâlâ önemli.
+            Önümüzdeki dönemde bu alandaki gelişmelerin nasıl
+            şekilleneceğini takip etmek, konunun sunduğu
+            fırsatları ve beraberinde getirdiği soruları
+            daha iyi anlamamıza yardımcı olabilir.
           </p>
-          <h2>Önemli olan yalnızca kod yazmak değil</h2>
-          <p>
-            İyi bir yazılım geliştirmek; gereksinimleri anlamayı,
-            veri yapıları ve algoritmalar hakkında düşünmeyi,
-            sistem tasarlamayı ve farklı çözüm seçeneklerini
-            değerlendirmeyi gerektiriyor.
-          </p>
-          <p>
-            Bu nedenle yapay zekâyı bir alternatiften çok,
-            doğru kullanıldığında geliştirme sürecini destekleyen
-            bir araç olarak değerlendirmek daha anlamlı.
-          </p>
+
           <div className="article-end">
             <span>MEDIA SPACE</span>
             <p>Fikirlerin ve hikâyelerin buluşma noktası.</p>
           </div>
         </div>
       </main>
+
       <footer className="article-footer">
         <span>© 2026 MEDIA SPACE</span>
         <a href="#">Ana sayfaya dön ↑</a>
@@ -370,6 +701,16 @@ function App() {
   const [currentPage, setCurrentPage] = useState(
     window.location.hash
   )
+
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    () => Boolean(localStorage.getItem('mediaSpaceToken'))
+  )
+
+  function handleLogout() {
+    localStorage.removeItem('mediaSpaceToken')
+    setIsLoggedIn(false)
+    window.location.hash = ''
+  }
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -384,14 +725,30 @@ function App() {
   }, [])
 
   if (currentPage === '#login') {
-    return <AuthPage mode="login" />
+    return (
+      <AuthPage
+        mode="login"
+        onLogin={() => setIsLoggedIn(true)}
+      />
+    )
   }
 
   if (currentPage === '#register') {
-    return <AuthPage mode="register" />
+    return (
+      <AuthPage
+        mode="register"
+        onLogin={() => setIsLoggedIn(true)}
+      />
+    )
   }
 
-  if (currentPage === '#article') return <ArticleDetail />
+  if (currentPage === '#favorites') {
+    return <FavoritesPage />
+  }
+
+  if (currentPage.startsWith('#article/')) {
+    return <ArticleDetail />
+  }
 
   const today = new Intl.DateTimeFormat('tr-TR', {
     day: 'numeric',
@@ -415,12 +772,31 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          <button className="search-button" aria-label="Ara" title="Ara">
+          <a className="favorites-nav-link" href="#favorites">
+            Favorilerim
+          </a>
+
+          <button
+            className="search-button"
+            aria-label="Ara"
+            title="Ara"
+          >
             <SearchIcon />
           </button>
-          <a className="login-button" href="#login">
-            Giriş yap ↗
-          </a>
+
+          {isLoggedIn ? (
+            <button
+              className="login-button"
+              onClick={handleLogout}
+              type="button"
+            >
+              Çıkış yap ↗
+            </button>
+          ) : (
+            <a className="login-button" href="#login">
+              Giriş yap ↗
+            </a>
+          )}
         </div>
       </header>
 
@@ -488,7 +864,7 @@ function App() {
             {trendingArticles.map((article) => (
               <a
                 className="trending-card"
-                href="#article"
+                href={`#article/${article.id}`}
                 key={article.number}
               >
                 <img src={article.image} alt="" loading="lazy" />
@@ -521,7 +897,7 @@ function App() {
           <div className="article-grid">
             {articles.map((article, index) => (
               <article className="article-card" key={article.title}>
-                <a className="article-image-link" href="#article">
+                <a className="article-image-link" href={`#article/${article.id}`}>
                   <img
                     src={article.image}
                     alt=""
@@ -540,17 +916,11 @@ function App() {
                       {article.category}
                     </span>
 
-                    <button
-                      className="bookmark-button"
-                      aria-label={`${article.title} haberini kaydet`}
-                      title="Kaydet"
-                    >
-                      <BookmarkIcon />
-                    </button>
+                    <FavoriteButton articleId={article.id} />
                   </div>
 
                   <h3>
-                    <a href="#article">{article.title}</a>
+                    <a href={`#article/${article.id}`}>{article.title}</a>
                   </h3>
 
                   <p>{article.description}</p>
