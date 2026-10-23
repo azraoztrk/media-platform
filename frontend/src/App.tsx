@@ -1,4 +1,14 @@
 import { useEffect, useState, type SyntheticEvent } from 'react'
+type ApiArticle = {
+  id: number
+  title: string
+  content: string
+  created_at: string
+  is_active: boolean
+  category: string
+  image_url: string | null
+  source_url: string | null
+}
 import './App.css'
 
 const categories = [
@@ -102,25 +112,25 @@ const articles = [
 
 function SearchIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="10.8" cy="10.8" r="6.5" />
-      <path d="m16 16 4.5 4.5" />
+    <svg viewBox='0 0 24 24' aria-hidden='true'>
+      <circle cx='10.8' cy='10.8' r='6.5' />
+      <path d='m16 16 4.5 4.5' />
     </svg>
   )
 }
 
 function ArrowIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 12h14M13 5l7 7-7 7" />
+    <svg viewBox='0 0 24 24' aria-hidden='true'>
+      <path d='M5 12h14M13 5l7 7-7 7' />
     </svg>
   )
 }
 
 function BookmarkIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6.5 4.5h11v16l-5.5-3.8-5.5 3.8z" />
+    <svg viewBox='0 0 24 24' aria-hidden='true'>
+      <path d='M6.5 4.5h11v16l-5.5-3.8-5.5 3.8z' />
     </svg>
   )
 }
@@ -237,20 +247,20 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
   }
 
   return (
-    <div className="auth-page">
-      <header className="auth-header">
-        <a className="brand" href="#">
+    <div className='auth-page'>
+      <header className='auth-header'>
+        <a className='brand' href='#'>
           media space<span>.</span>
         </a>
 
-        <a className="auth-back-link" href="#">
+        <a className='auth-back-link' href='#'>
           ← Ana sayfaya dön
         </a>
       </header>
 
-      <main className="auth-main">
-        <div className="auth-intro">
-          <span className="section-eyebrow">
+      <main className='auth-main'>
+        <div className='auth-intro'>
+          <span className='section-eyebrow'>
             MEDIA SPACE ÜYELİĞİ
           </span>
 
@@ -278,16 +288,16 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
         </div>
 
         <form
-          className="auth-form"
+          className='auth-form'
           onSubmit={handleSubmit}
         >
           <label>
             E-posta adresi
             <input
-              type="email"
-              name="email"
-              placeholder="ornek@email.com"
-              autoComplete="email"
+              type='email'
+              name='email'
+              placeholder='ornek@email.com'
+              autoComplete='email'
               required
             />
           </label>
@@ -295,9 +305,9 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
           <label>
             Şifre
             <input
-              type="password"
-              name="password"
-              placeholder="Şifreni gir"
+              type='password'
+              name='password'
+              placeholder='Şifreni gir'
               autoComplete={
                 isLogin ? 'current-password' : 'new-password'
               }
@@ -310,10 +320,10 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
             <label>
               Şifre tekrarı
               <input
-                type="password"
-                name="confirmPassword"
-                placeholder="Şifreni tekrar gir"
-                autoComplete="new-password"
+                type='password'
+                name='confirmPassword'
+                placeholder='Şifreni tekrar gir'
+                autoComplete='new-password'
                 minLength={8}
                 required
               />
@@ -322,28 +332,28 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
 
           {isLogin && (
             <a
-              className="forgot-password"
-              href="#forgot-password"
+              className='forgot-password'
+              href='#forgot-password'
             >
               Şifremi unuttum
             </a>
           )}
 
           {error && (
-            <p role="alert" style={{ color: '#c0392b' }}>
+            <p role='alert' style={{ color: '#c0392b' }}>
               {error}
             </p>
           )}
 
           {success && (
-            <p role="status" style={{ color: '#218838' }}>
+            <p role='status' style={{ color: '#218838' }}>
               {success}
             </p>
           )}
 
           <button
-            className="auth-submit"
-            type="submit"
+            className='auth-submit'
+            type='submit'
             disabled={isLoading}
           >
             {isLoading
@@ -352,10 +362,10 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
                 ? 'Giriş yap'
                 : 'Hesap oluştur'}
 
-            <span aria-hidden="true">↗</span>
+            <span aria-hidden='true'>↗</span>
           </button>
 
-          <p className="auth-switch">
+          <p className='auth-switch'>
             {isLogin
               ? 'Henüz hesabın yok mu?'
               : 'Zaten hesabın var mı?'}{' '}
@@ -366,12 +376,12 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
           </p>
         </form>
 
-        <div className="auth-bottom-note">
+        <div className='auth-bottom-note'>
           FİKİRLERİN VE HİKÂYELERİN BULUŞMA NOKTASI
         </div>
       </main>
 
-      <footer className="auth-footer">
+      <footer className='auth-footer'>
         <span>© 2026 MEDIA SPACE</span>
         <span>Dünyaya farklı bir açıdan bak.</span>
       </footer>
@@ -448,27 +458,31 @@ function FavoriteButton({ articleId }: FavoriteButtonProps) {
           : 'Favorilerime ekle'
       }
       onClick={handleClick}
-      type="button"
+      type='button'
     >
       <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="19"
-        height="19"
-        viewBox="0 0 24 24"
+        xmlns='http://www.w3.org/2000/svg'
+        width='19'
+        height='19'
+        viewBox='0 0 24 24'
         fill={isFavorite ? 'currentColor' : 'none'}
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
+        stroke='currentColor'
+        strokeWidth='1.7'
+        strokeLinecap='round'
+        strokeLinejoin='round'
+        aria-hidden='true'
       >
-        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
+        <path d='M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z' />
       </svg>
     </button>
   )
 }
 
-function FavoritesPage() {
+function FavoritesPage({
+  apiArticles,
+}: {
+  apiArticles: ApiArticle[]
+}) {
   const [favoriteIds, setFavoriteIds] = useState<string[]>(
     () => getFavoriteIds()
   )
@@ -485,25 +499,25 @@ function FavoritesPage() {
     }
   }, [])
 
-  const favoriteArticles = articles.filter((article) =>
-    favoriteIds.includes(article.id)
+  const favoriteArticles = apiArticles.filter((article) =>
+    favoriteIds.includes(String(article.id))
   )
 
   return (
-    <div className="favorites-page">
-      <header className="article-header">
-        <a className="brand" href="#">
+    <div className='favorites-page'>
+      <header className='article-header'>
+        <a className='brand' href='#'>
           media space<span>.</span>
         </a>
 
-        <a className="article-back-link" href="#">
+        <a className='article-back-link' href='#'>
           ← Ana sayfaya dön
         </a>
       </header>
 
-      <main className="favorites-main">
-        <div className="favorites-heading">
-          <span className="section-eyebrow">
+      <main className='favorites-main'>
+        <div className='favorites-heading'>
+          <span className='section-eyebrow'>
             KAYDETTİĞİN HİKÂYELER
           </span>
 
@@ -515,8 +529,8 @@ function FavoritesPage() {
         </div>
 
         {favoriteArticles.length === 0 ? (
-          <div className="favorites-empty">
-            <div className="favorites-empty-icon">♡</div>
+          <div className='favorites-empty'>
+            <div className='favorites-empty-icon'>♡</div>
 
             <h2>Henüz favorin yok.</h2>
 
@@ -525,33 +539,36 @@ function FavoritesPage() {
               onları burada saklayabilirsin.
             </p>
 
-            <a className="favorites-home-link" href="#latest">
+            <a className='favorites-home-link' href='#latest'>
               Haberleri keşfet ↗
             </a>
           </div>
         ) : (
-          <div className="article-grid">
+          <div className='article-grid'>
             {favoriteArticles.map((article, index) => (
-              <article className="article-card" key={article.id}>
+              <article className='article-card' key={article.id}>
                 <a
-                  className="article-image-link"
+                  className='article-image-link'
                   href={`#article/${article.id}`}
                 >
                   <img
-                    src={article.image}
-                    alt=""
-                    loading="lazy"
-                    className="article-image"
+                    src={
+                    article.image_url ||
+                    'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=900&q=85'
+                    }
+                    alt={article.title}
+                    loading='lazy'
+                    className='article-image'
                   />
 
-                  <span className="article-index">
+                  <span className='article-index'>
                     {String(index + 1).padStart(2, '0')}
                   </span>
                 </a>
 
-                <div className="article-body">
-                  <div className="article-meta">
-                    <span className="article-category">
+                <div className='article-body'>
+                  <div className='article-meta'>
+                    <span className='article-category'>
                       {article.category}
                     </span>
 
@@ -564,9 +581,13 @@ function FavoritesPage() {
                     </a>
                   </h3>
 
-                  <p>{article.description}</p>
+                  <p>
+                    {article.content.length > 150
+                      ? `${article.content.slice(0, 150)}...`
+                      : article.content}
+                  </p>
 
-                  <div className="article-footer">
+                  <div className='article-footer'>
                     <span>MEDIA SPACE EDİTÖRÜ</span>
                     <span>{article.time} okuma</span>
                   </div>
@@ -577,99 +598,114 @@ function FavoritesPage() {
         )}
       </main>
 
-      <footer className="article-footer">
+      <footer className='article-footer'>
         <span>© 2026 MEDIA SPACE</span>
-        <a href="#">Ana sayfaya dön ↑</a>
+        <a href='#'>Ana sayfaya dön ↑</a>
       </footer>
     </div>
   )
 }
 
-function ArticleDetail() {
+function ArticleDetail({
+  apiArticles,
+}: {
+  apiArticles: ApiArticle[]
+}) {
   const articleId = window.location.hash.split('/')[1]
 
-  const article = articles.find(
-    (item) => item.id === articleId
+  const article = apiArticles.find(
+  (item) => String(item.id) === articleId
   )
 
   if (!article) {
     return (
-      <div className="article-page">
-        <main className="article-main">
+      <div className='article-page'>
+        <main className='article-main'>
           <h1>Haber bulunamadı.</h1>
-          <a href="#">Ana sayfaya dön</a>
+          <a href='#'>Ana sayfaya dön</a>
         </main>
       </div>
     )
   }
 
   return (
-    <div className="article-page">
-      <header className="article-header">
-        <a className="brand" href="#">
+    <div className='article-page'>
+      <header className='article-header'>
+        <a className='brand' href='#'>
           media space<span>.</span>
         </a>
 
-        <a className="article-back-link" href="#">
+        <a className='article-back-link' href='#'>
           ← Ana sayfaya dön
         </a>
       </header>
 
-      <main className="article-main">
-        <div className="article-heading">
-          <span className="section-eyebrow">
+      <main className='article-main'>
+        <div className='article-heading'>
+          <span className='section-eyebrow'>
             {article.category}
           </span>
 
           <h1>{article.title}</h1>
 
-          <p className="article-spot">
-            {article.description}
+          <p className='article-spot'>
+            {article.content}
           </p>
 
-          <div className="article-meta">
+
+          <div className='article-meta'>
             <div>
-              <span className="article-meta-label">YAZAR</span>
+              <span className='article-meta-label'>YAZAR</span>
               <span>Media Space Editörleri</span>
             </div>
 
             <div>
-              <span className="article-meta-label">
+              <span className='article-meta-label'>
                 YAYIN TARİHİ
               </span>
-              <span>17 Ekim 2026</span>
+              <span>
+                {new Intl.DateTimeFormat('tr-TR', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                }).format(new Date(article.created_at))}
+              </span>
+
             </div>
 
             <div>
-              <span className="article-meta-label">
+              <span className='article-meta-label'>
                 OKUMA SÜRESİ
               </span>
-              <span>{article.time}</span>
+              <span>{Math.max(1, Math.ceil(article.content.split(/\s+/).length / 200))} dk</span>
             </div>
           </div>
         </div>
 
         <img
-          className="article-cover"
-          src={article.image}
+          className='article-cover'
+          src={
+            article.image_url ||
+            'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=900&q=85'
+          }
           alt={article.title}
         />
 
-        <div className="article-content">
-          <div className="article-content-top">
-            <span className="section-eyebrow">MAKALE</span>
+        <div className='article-content'>
+          <div className='article-content-top'>
+            <span className='section-eyebrow'>MAKALE</span>
 
             <FavoriteButton articleId={article.id} />
           </div>
 
-          <p className="article-lead">
-            {article.description}
+          <p className='article-lead'>
+            {article.content}
           </p>
 
           <h2>{article.title}</h2>
 
           <p>
-            {article.description} Bu konudaki gelişmeleri
+            {article.content} Bu konudaki gelişmeleri
             anlamak için mevcut bilgileri, yeni araştırmaları
             ve farklı bakış açılarını birlikte değerlendirmek
             gerekiyor.
@@ -682,16 +718,16 @@ function ArticleDetail() {
             daha iyi anlamamıza yardımcı olabilir.
           </p>
 
-          <div className="article-end">
+          <div className='article-end'>
             <span>MEDIA SPACE</span>
             <p>Fikirlerin ve hikâyelerin buluşma noktası.</p>
           </div>
         </div>
       </main>
 
-      <footer className="article-footer">
+      <footer className='article-footer'>
         <span>© 2026 MEDIA SPACE</span>
-        <a href="#">Ana sayfaya dön ↑</a>
+        <a href='#'>Ana sayfaya dön ↑</a>
       </footer>
     </div>
   )
@@ -705,6 +741,76 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(
     () => Boolean(localStorage.getItem('mediaSpaceToken'))
   )
+
+  const [apiArticles, setApiArticles] = useState<ApiArticle[]>([])
+  const [isLoadingArticles, setIsLoadingArticles] = useState(false)
+  const [articlesError, setArticlesError] = useState('')
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setApiArticles([])
+      return
+    }
+
+    const token = localStorage.getItem('mediaSpaceToken')
+
+    if (!token) {
+      setApiArticles([])
+      return
+    }
+
+    let isCancelled = false
+
+    async function fetchArticles() {
+      setIsLoadingArticles(true)
+      setArticlesError('')
+
+      try {
+        const response = await fetch(
+          'http://127.0.0.1:8000/api/articles',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        )
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            throw new Error(
+              'Haberleri görmek için tekrar giriş yapman gerekebilir.'
+            )
+          }
+
+          throw new Error('Haberler alınamadı.')
+        }
+
+        const data: ApiArticle[] = await response.json()
+
+        if (!isCancelled) {
+          setApiArticles(data)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setArticlesError(
+            error instanceof Error
+              ? error.message
+              : 'Beklenmeyen bir hata oluştu.'
+          )
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingArticles(false)
+        }
+      }
+    }
+
+    fetchArticles()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [isLoggedIn])
 
   function handleLogout() {
     localStorage.removeItem('mediaSpaceToken')
@@ -727,7 +833,7 @@ function App() {
   if (currentPage === '#login') {
     return (
       <AuthPage
-        mode="login"
+        mode='login'
         onLogin={() => setIsLoggedIn(true)}
       />
     )
@@ -736,18 +842,18 @@ function App() {
   if (currentPage === '#register') {
     return (
       <AuthPage
-        mode="register"
+        mode='register'
         onLogin={() => setIsLoggedIn(true)}
       />
     )
   }
 
   if (currentPage === '#favorites') {
-    return <FavoritesPage />
+    return <FavoritesPage apiArticles={apiArticles} />
   }
 
   if (currentPage.startsWith('#article/')) {
-    return <ArticleDetail />
+    return <ArticleDetail apiArticles={apiArticles} />
   }
 
   const today = new Intl.DateTimeFormat('tr-TR', {
@@ -757,43 +863,43 @@ function App() {
   }).format(new Date())
 
   return (
-    <div className="app-shell">
-      <header className="site-header">
-        <a className="brand" href="#" aria-label="Media Space ana sayfa">
+    <div className='app-shell'>
+      <header className='site-header'>
+        <a className='brand' href='#' aria-label='Media Space ana sayfa'>
           media space<span>.</span>
         </a>
 
-        <nav className="desktop-nav" aria-label="Kategoriler">
+        <nav className='desktop-nav' aria-label='Kategoriler'>
           {categories.map((category) => (
-            <a key={category} href="#latest">
+            <a key={category} href='#latest'>
               {category}
             </a>
           ))}
         </nav>
 
-        <div className="header-actions">
-          <a className="favorites-nav-link" href="#favorites">
+        <div className='header-actions'>
+          <a className='favorites-nav-link' href='#favorites'>
             Favorilerim
           </a>
 
           <button
-            className="search-button"
-            aria-label="Ara"
-            title="Ara"
+            className='search-button'
+            aria-label='Ara'
+            title='Ara'
           >
             <SearchIcon />
           </button>
 
           {isLoggedIn ? (
             <button
-              className="login-button"
+              className='login-button'
               onClick={handleLogout}
-              type="button"
+              type='button'
             >
               Çıkış yap ↗
             </button>
           ) : (
-            <a className="login-button" href="#login">
+            <a className='login-button' href='#login'>
               Giriş yap ↗
             </a>
           )}
@@ -801,22 +907,22 @@ function App() {
       </header>
 
       <main>
-        <section className="hero" aria-label="Öne çıkan haber">
+        <section className='hero' aria-label='Öne çıkan haber'>
           <img
-            className="hero-image"
-            src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=2200&q=90"
-            alt="Dünya ve küresel dijital bağlantılar"
+            className='hero-image'
+            src='https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=2200&q=90'
+            alt='Dünya ve küresel dijital bağlantılar'
           />
 
-          <div className="hero-overlay" />
+          <div className='hero-overlay' />
 
-          <div className="hero-topline">
+          <div className='hero-topline'>
             <span>BAĞIMSIZ BİR BAKIŞ AÇISI</span>
             <span>{today}</span>
           </div>
 
-          <div className="hero-content">
-            <span className="hero-category">DOSYA · TEKNOLOJİ & BİLİM</span>
+          <div className='hero-content'>
+            <span className='hero-category'>DOSYA · TEKNOLOJİ & BİLİM</span>
 
             <h1>
               Geleceği anlamak
@@ -828,55 +934,64 @@ function App() {
 
             <p>
               Teknolojiden bilime, dünyayı değiştiren fikirleri
-              <br className="desktop-break" />
+              <br className='desktop-break' />
               ve hikâyeleri keşfet.
             </p>
 
-            <a className="hero-link" href="#latest">
+            <a className='hero-link' href='#latest'>
               Hikâyeleri keşfet <ArrowIcon />
             </a>
           </div>
 
-          <div className="hero-counter">
+          <div className='hero-counter'>
             <span>01</span>
-            <span className="counter-line" />
+            <span className='counter-line' />
             <span>06</span>
           </div>
 
-          <span className="hero-caption">
+          <span className='hero-caption'>
             FİKİRLERİN VE HİKÂYELERİN BULUŞMA NOKTASI
           </span>
         </section>
 
-        <section className="trending section-container">
-          <div className="section-header">
+        <section className='trending section-container'>
+          <div className='section-header'>
             <div>
-              <span className="section-eyebrow">GÜNDEMDE NE VAR?</span>
+              <span className='section-eyebrow'>GÜNDEMDE NE VAR?</span>
               <h2>Şimdi gündemde</h2>
             </div>
 
-            <a className="text-link" href="#latest">
+            <a className='text-link' href='#latest'>
               Tüm haberler <ArrowIcon />
             </a>
           </div>
 
-          <div className="trending-grid">
-            {trendingArticles.map((article) => (
+          <div className='trending-grid'>
+            {apiArticles.filter((article) => article.is_active).map((article, index) => (
               <a
-                className="trending-card"
+                className='trending-card'
                 href={`#article/${article.id}`}
-                key={article.number}
+                key={article.id}
               >
-                <img src={article.image} alt="" loading="lazy" />
+                <img
+                  src={
+                    article.image_url ||
+                    'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=500&q=85'
+                  }
+                  alt={article.title}
+                  loading='lazy'
+                />
 
-                <span className="trending-number">{article.number}</span>
+                <span className='trending-number'>
+                  {String(index + 1).padStart(2, '0')}
+                </span>
 
-                <div className="trending-info">
+                <div className='trending-info'>
                   <span>{article.category}</span>
                   <h3>{article.title}</h3>
                 </div>
 
-                <span className="trending-arrow">
+                <span className='trending-arrow'>
                   <ArrowIcon />
                 </span>
               </a>
@@ -884,60 +999,88 @@ function App() {
           </div>
         </section>
 
-        <section className="latest section-container" id="latest">
-          <div className="section-header">
+        <section className='latest section-container' id='latest'>
+          <div className='section-header'>
             <div>
-              <span className="section-eyebrow">MERAK ETTİĞİN HER ŞEY</span>
+              <span className='section-eyebrow'>MERAK ETTİĞİN HER ŞEY</span>
               <h2>Son hikâyeler</h2>
             </div>
 
-            <div className="latest-date">{today}</div>
+            <div className='latest-date'>{today}</div>
           </div>
 
-          <div className="article-grid">
-            {articles.map((article, index) => (
-              <article className="article-card" key={article.title}>
-                <a className="article-image-link" href={`#article/${article.id}`}>
-                  <img
-                    src={article.image}
-                    alt=""
-                    loading="lazy"
-                    className="article-image"
-                  />
-
-                  <span className="article-index">
-                    {String(index + 1).padStart(2, '0')}
+          {isLoadingArticles ? (
+            <p className='articles-message'>Haberler yükleniyor...</p>
+          ) : articlesError ? (
+            <p className='articles-message' role='alert'>
+              {articlesError}
+            </p>
+          ) : !isLoggedIn ? (
+            <p className='articles-message'>
+              Haberleri görmek için <a href='#login'>giriş yap</a>.
+            </p>
+          ) : apiArticles.length === 0 ? (
+            <p className='articles-message'>
+              Henüz gösterilecek haber bulunmuyor.
+            </p>
+          ) : (
+            <div className='article-grid'>
+              {apiArticles.filter((article) => article.is_active).map((article, index) => (
+                <article className='article-card' key={article.id}>
+                  <a
+                    className='article-image-link'
+                    href={`#article/${article.id}`}
+                  >
+                    <img
+                      src={
+                        article.image_url ||
+                        'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=900&q=85'
+                      }
+                      alt={article.title}
+                      loading='lazy'
+                      className='article-image'
+                    />
+                <span className='article-index'>
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+              </a>
+              <div className='article-body'>
+                <div className='article-meta'>
+                  <span className='article-category'>
+                    {article.category.toLocaleUpperCase('tr-TR')}
                   </span>
-                </a>
-
-                <div className="article-body">
-                  <div className="article-meta">
-                    <span className="article-category">
-                      {article.category}
-                    </span>
-
-                    <FavoriteButton articleId={article.id} />
-                  </div>
-
-                  <h3>
-                    <a href={`#article/${article.id}`}>{article.title}</a>
-                  </h3>
-
-                  <p>{article.description}</p>
-
-                  <div className="article-footer">
-                    <span>MEDIA SPACE EDİTÖRÜ</span>
-                    <span>{article.time} okuma</span>
-                  </div>
+                  <FavoriteButton articleId={String(article.id)} />
                 </div>
-              </article>
-            ))}
-          </div>
+                <h3>
+                  <a href={`#article/${article.id}`}>
+                    {article.title}
+                  </a>
+                </h3>
+                <p>
+                  {article.content.length > 150
+                    ? `${article.content.slice(0, 150)}...`
+                    : article.content}
+                </p>
+                <div className='article-footer'>
+                  <span>MEDIA SPACE EDİTÖRÜ</span>
+                  <span>
+                    {new Intl.DateTimeFormat('tr-TR', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    }).format(new Date(article.created_at))}
+                  </span>
+                </div>
+              </div>
+            </article>
+          ))}
+            </div>
+          )}
         </section>
       </main>
 
-      <footer className="site-footer">
-        <a className="footer-brand" href="#">
+      <footer className='site-footer'>
+        <a className='footer-brand' href='#'>
           media space<span>.</span>
         </a>
 

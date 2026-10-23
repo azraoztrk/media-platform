@@ -11,7 +11,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.rss_service import import_rss_articles
 
 from app.models import Article as ArticleModel, User as UserModel      #UserModel, veritabanındaki kullanıcı tablosuna erişmemizi sağlar.
-from fastapi import FastAPI, Depends, HTTPException                    #HTTPException, örneğin aynı e-posta adresiyle tekrar kayıt yapılmasını uygun bir HTTP hata koduyla bildirmemizi sağlar.
+from fastapi import FastAPI, Depends, HTTPException, Query                    #HTTPException, örneğin aynı e-posta adresiyle tekrar kayıt yapılmasını uygun bir HTTP hata koduyla bildirmemizi sağlar.
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field                                  #Field, parola için minimum uzunluk belirlememizi sağlar.
 
@@ -116,6 +116,9 @@ def create_article(article: Article, db: Session = Depends(get_db),
 
 @app.get("/api/articles")
 def get_articles(
+    category: str | None = Query(default=None),
+    limit: int = Query(default=10, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
@@ -126,9 +129,14 @@ def get_articles(
             ArticleModel.is_active == True
         )
 
+    if category:
+        query = query.filter(
+            ArticleModel.category == category
+        )
+
     articles = query.order_by(
         ArticleModel.created_at.desc()
-    ).all()
+    ).offset(offset).limit(limit).all()
 
     return [
         {
@@ -136,7 +144,10 @@ def get_articles(
             "title": article.title,
             "content": article.content,
             "created_at": article.created_at,
-            "is_active": article.is_active
+            "is_active": article.is_active,
+            "category": article.category,
+            "image_url": article.image_url,
+            "source_url": article.source_url
         }
         for article in articles
     ]

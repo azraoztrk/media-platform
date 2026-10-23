@@ -13,6 +13,8 @@ class Article(Base):
     created_at = Column(DateTime, server_default=func.now())      #Oluşturulma tarihi
     is_active = Column(Boolean, nullable=False, default=True, server_default="true")
     source_url = Column(String(500), unique=True, nullable=True)
+    category = Column(String(100), nullable=False, default="Gündem", server_default="Gündem")
+    image_url = Column(String(1000), nullable=True)
 
 class User(Base):
     __tablename__ = "users"
