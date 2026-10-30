@@ -43,21 +43,54 @@ def get_article_category(url: str, title: str = "") -> str:
         "dunya": "Gündem",
     }
 
+    technology_keywords = [
+        "yapay zeka",
+        "yapay zekâ",
+        "teknoloji",
+        "siber güvenlik",
+        "akıllı telefon",
+        "robot",
+        "tesla",
+        "elektrikli araç",
+        "şarj istasyonu",
+        "batarya",
+        "pil",
+        "otonom araç",
+        "çip",
+        "işlemci",
+        "apple",
+        "samsung",
+        "google",
+        "microsoft",
+        "makine öğrenmesi",
+        "veri merkezi",
+        "uygulama",
+    ]
+
+    science_keywords = [
+        "bilim",
+        "bilim insanı",
+        "bilimsel araştırma",
+        "bilimsel keşif",
+        "astronomi",
+        "uzay araştırmaları",
+        "nasa",
+        "gezegen",
+        "galaksi",
+        "evren",
+        "kara delik",
+        "kuantum",
+        "fizik",
+        "kimya",
+        "biyoloji",
+        "arkeoloji",
+        "fosil",
+        "iklim araştırması",
+        "laboratuvar",
+    ]
+
     # Başlığı önce kontrol et.
     title_lower = title.casefold()
-
-    # Teknolojiyle ilgili daha belirgin ifadeler
-    technology_keywords = [
-        "yapay zeka", "yapay zekâ",
-        "siber güvenlik", "akıllı telefon",
-        "teknoloji", "robot", "yazılım",
-    ]
-
-    # Bilimle ilgili daha belirgin ifadeler
-    science_keywords = [
-        "bilim insanı", "astronomi",
-        "uzay araştırmaları", "bilimsel keşif",
-    ]
 
     if any(word in title_lower for word in technology_keywords):
         return "Teknoloji"
@@ -77,34 +110,6 @@ def get_article_category(url: str, title: str = "") -> str:
         return "Teknoloji"
 
     if last_section.endswith("-bilim"):
-        return "Bilim"
-
-    # URL'den kategori belirlenemezse başlığı kontrol et.
-    title_lower = title.casefold()
-
-    technology_keywords = [
-        "yapay zeka",
-        "yapay zekâ",
-        "teknoloji",
-        "siber güvenlik",
-        "akıllı telefon",
-        "robot",
-    ]
-
-    science_keywords = [
-        "bilim",
-        "uzay",
-        "nasa",
-        "astronomi",
-        "bilim insanı",
-        "araştırma",
-        "keşif",
-    ]
-
-    if any(word in title_lower for word in technology_keywords):
-        return "Teknoloji"
-
-    if any(word in title_lower for word in science_keywords):
         return "Bilim"
 
     return "Gündem"
@@ -139,6 +144,7 @@ def import_rss_articles(db: Session):
         title = entry.get("title", "").strip()
         link = entry.get("link", "").strip()
         content = entry.get("summary", "").strip()
+
         # Başlık veya bağlantı yoksa haberi atla.
         if not title or not link:
             skipped_count += 1
@@ -160,10 +166,14 @@ def import_rss_articles(db: Session):
             .first()
         )
         if existing_article:
+            # Haberin kategorisini yeni kurallara göre güncelle.
+            existing_article.category = get_article_category(link, title)
+
             # Yalnızca görseli eksik haberleri güncelle.
             if not existing_article.image_url and image_url:
                 existing_article.image_url = image_url
                 updated_images_count += 1
+
             skipped_count += 1
             continue
         # Yeni haberi kaydet.

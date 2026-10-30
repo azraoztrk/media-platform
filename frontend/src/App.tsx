@@ -608,13 +608,15 @@ function FavoritesPage({
 
 function ArticleDetail({
   apiArticles,
+  suggestionArticles,
 }: {
   apiArticles: ApiArticle[]
+  suggestionArticles: ApiArticle[]
 }) {
   const articleId = window.location.hash.split('/')[1]
 
-  const article = apiArticles.find(
-  (item) => String(item.id) === articleId
+  const article = [...apiArticles, ...suggestionArticles].find(
+    (item) => String(item.id) === articleId
   )
 
   if (!article) {
@@ -743,21 +745,16 @@ function App() {
   )
 
   const [apiArticles, setApiArticles] = useState<ApiArticle[]>([])
+  const [suggestionArticles, setSuggestionArticles] = useState<ApiArticle[]>([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [submittedSearch, setSubmittedSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
   const [isLoadingArticles, setIsLoadingArticles] = useState(false)
   const [articlesError, setArticlesError] = useState('')
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      setApiArticles([])
-      return
-    }
-
-    const token = localStorage.getItem('mediaSpaceToken')
-
-    if (!token) {
-      setApiArticles([])
-      return
-    }
+  const token = localStorage.getItem('mediaSpaceToken')
 
     let isCancelled = false
 
@@ -766,14 +763,28 @@ function App() {
       setArticlesError('')
 
       try {
-        const response = await fetch(
-          'http://127.0.0.1:8000/api/articles',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        )
+      setIsLoadingArticles(true)
+      setArticlesError('')
+
+      const params = new URLSearchParams()
+
+      if (submittedSearch.trim()) {
+        params.set('search', submittedSearch.trim())
+      }
+
+      if (selectedCategory) {
+        params.set('category', selectedCategory)
+      }
+
+      const response = await fetch(
+       `http://127.0.0.1:8000/api/articles?${params.toString()}`,       {
+          headers: token
+            ? {
+                Authorization: `Bearer ${token}`,
+              }
+            : {},
+        }
+      )
 
         if (!response.ok) {
           if (response.status === 401 || response.status === 403) {
@@ -810,7 +821,45 @@ function App() {
     return () => {
       isCancelled = true
     }
-  }, [isLoggedIn])
+  }, [isLoggedIn, submittedSearch, selectedCategory])
+  useEffect(() => {
+    const query = searchTerm.trim()
+
+    if (!isSearchOpen || query.length < 2) {
+      setSuggestionArticles([])
+      return
+    }
+
+    let isCancelled = false
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/articles?search=${encodeURIComponent(query)}&limit=5`
+        )
+
+        if (!response.ok) {
+          throw new Error('Öneriler alınamadı.')
+        }
+
+        const data: ApiArticle[] = await response.json()
+
+        if (!isCancelled) {
+          setSuggestionArticles(data.filter((article) => article.is_active))
+        }
+      } catch {
+        if (!isCancelled) {
+          setSuggestionArticles([])
+        }
+      }
+    }, 300)
+
+    return () => {
+      isCancelled = true
+      clearTimeout(timer)
+    }
+  }, [searchTerm, isSearchOpen])
+
 
   function handleLogout() {
     localStorage.removeItem('mediaSpaceToken')
@@ -853,7 +902,12 @@ function App() {
   }
 
   if (currentPage.startsWith('#article/')) {
-    return <ArticleDetail apiArticles={apiArticles} />
+    return (
+      <ArticleDetail
+        apiArticles={apiArticles}
+        suggestionArticles={suggestionArticles}
+      />
+    )
   }
 
   const today = new Intl.DateTimeFormat('tr-TR', {
@@ -870,8 +924,18 @@ function App() {
         </a>
 
         <nav className='desktop-nav' aria-label='Kategoriler'>
+          <a
+            href='#latest'
+            onClick={() => setSelectedCategory('')}
+          >
+            Tümü
+          </a>
           {categories.map((category) => (
-            <a key={category} href='#latest'>
+            <a
+              key={category}
+              href='#latest'
+              onClick={() => setSelectedCategory(category)}
+            >
               {category}
             </a>
           ))}
@@ -886,9 +950,51 @@ function App() {
             className='search-button'
             aria-label='Ara'
             title='Ara'
+            onClick={() => setIsSearchOpen(!isSearchOpen)}
           >
             <SearchIcon />
           </button>
+
+          {isSearchOpen && (
+            <div className='search-container'>
+              <input
+                className='search-input'
+                type='search'
+                placeholder='Haberlerde ara...'
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    setSubmittedSearch(searchTerm.trim())
+                  }
+                }}
+                autoFocus
+              />
+
+              {searchTerm.trim().length >= 2 && (
+                <div className='search-suggestions'>
+                  {suggestionArticles
+                    .filter(
+                      (article) =>
+                        article.is_active &&
+                        (article.title.toLocaleLowerCase('tr-TR').includes(searchTerm.trim().toLocaleLowerCase('tr-TR')) ||
+                          article.content.toLocaleLowerCase('tr-TR').includes(searchTerm.trim().toLocaleLowerCase('tr-TR')))
+                    )
+                    .slice(0, 5)
+                    .map((article) => (
+                      <a
+                        key={article.id}
+                        href={`#article/${article.id}`}
+                        className='search-suggestion'
+                      >
+                        <span>{article.category}</span>
+                        <strong>{article.title}</strong>
+                      </a>
+                    ))}
+                </div>
+              )}
+          </div>
+        )}
 
           {isLoggedIn ? (
             <button
@@ -1014,10 +1120,6 @@ function App() {
           ) : articlesError ? (
             <p className='articles-message' role='alert'>
               {articlesError}
-            </p>
-          ) : !isLoggedIn ? (
-            <p className='articles-message'>
-              Haberleri görmek için <a href='#login'>giriş yap</a>.
             </p>
           ) : apiArticles.length === 0 ? (
             <p className='articles-message'>

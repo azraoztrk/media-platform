@@ -34,10 +34,49 @@ app.add_middleware(
 
 bearer_scheme = HTTPBearer()
 
+optional_bearer_scheme = HTTPBearer(auto_error=False)
+
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: Session = Depends(get_db)
 ):
+    token = credentials.credentials
+
+    try:
+        payload = decode_access_token(token)
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired token"
+        )
+
+    email = payload.get("sub")
+
+    if not email:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+    user = db.query(UserModel).filter(
+        UserModel.email == email
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found"
+        )
+
+    return user
+
+def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer_scheme),
+    db: Session = Depends(get_db)
+):
+    if credentials is None:
+        return None
+
     token = credentials.credentials
 
     try:
@@ -117,14 +156,14 @@ def create_article(article: Article, db: Session = Depends(get_db),
 @app.get("/api/articles")
 def get_articles(
     category: str | None = Query(default=None),
+    search: str | None = Query(default=None),
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user)
-):
+    current_user: UserModel | None = Depends(get_optional_user)):
     query = db.query(ArticleModel)
 
-    if current_user.role == "USER":
+    if current_user is None or current_user.role == "USER":
         query = query.filter(
             ArticleModel.is_active == True
         )
@@ -132,6 +171,12 @@ def get_articles(
     if category:
         query = query.filter(
             ArticleModel.category == category
+        )
+
+    if search:
+        query = query.filter(
+            ArticleModel.title.ilike(f"%{search}%") |
+            ArticleModel.content.ilike(f"%{search}%")
         )
 
     articles = query.order_by(
