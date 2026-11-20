@@ -303,28 +303,50 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
 
 const FAVORITES_KEY = 'mediaSpaceFavorites'
 
-function getFavoriteIds(): string[] {
-  try {
-    const savedFavorites = localStorage.getItem(FAVORITES_KEY)
+function getFavoritesStorageKey(): string {
+  const token = localStorage.getItem('mediaSpaceToken')
+  const guestKey = `${FAVORITES_KEY}:guest`
 
+  if (!token) return guestKey
+
+  try {
+    const payloadPart = token.split('.')[1]
+    if (!payloadPart) return guestKey
+
+    const normalized = payloadPart
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
+      .padEnd(Math.ceil(payloadPart.length / 4) * 4, '=')
+
+    const payload = JSON.parse(atob(normalized)) as { sub?: string }
+    const account = payload.sub?.trim().toLocaleLowerCase('en-US')
+
+    return account ? `${FAVORITES_KEY}:${account}` : guestKey
+  } catch {
+    return guestKey
+  }
+}
+
+function getFavoriteIds(storageKey = getFavoritesStorageKey()): string[] {
+  try {
+    const savedFavorites = localStorage.getItem(storageKey)
     return savedFavorites ? JSON.parse(savedFavorites) : []
   } catch {
     return []
   }
 }
 
-function toggleFavorite(articleId: string): boolean {
-  const favorites = getFavoriteIds()
+function toggleFavorite(
+  articleId: string,
+  storageKey = getFavoritesStorageKey()
+): boolean {
+  const favorites = getFavoriteIds(storageKey)
 
   const updatedFavorites = favorites.includes(articleId)
     ? favorites.filter((id) => id !== articleId)
     : [...favorites, articleId]
 
-  localStorage.setItem(
-    FAVORITES_KEY,
-    JSON.stringify(updatedFavorites)
-  )
-
+  localStorage.setItem(storageKey, JSON.stringify(updatedFavorites))
   window.dispatchEvent(new Event('favoritesUpdated'))
 
   return updatedFavorites.includes(articleId)
@@ -335,13 +357,15 @@ type FavoriteButtonProps = {
 }
 
 function FavoriteButton({ articleId }: FavoriteButtonProps) {
+  const storageKey = getFavoritesStorageKey()
+
   const [isFavorite, setIsFavorite] = useState(() =>
-    getFavoriteIds().includes(articleId)
+    getFavoriteIds(storageKey).includes(articleId)
   )
 
   useEffect(() => {
     const updateFavorite = () => {
-      setIsFavorite(getFavoriteIds().includes(articleId))
+      setIsFavorite(getFavoriteIds(storageKey).includes(articleId))
     }
 
     window.addEventListener('favoritesUpdated', updateFavorite)
@@ -349,18 +373,18 @@ function FavoriteButton({ articleId }: FavoriteButtonProps) {
     return () => {
       window.removeEventListener('favoritesUpdated', updateFavorite)
     }
-  }, [articleId])
+  }, [articleId, storageKey])
 
-    const handleClick = () => {
-      if (!isFavorite && !localStorage.getItem('mediaSpaceToken')) {
-        window.alert('Favorilere eklemek için önce giriş yapmalısın.')
-        window.location.hash = '#login'
-        return
-      }
-
-      const newFavoriteState = toggleFavorite(articleId)
-      setIsFavorite(newFavoriteState)
+  const handleClick = () => {
+    if (!isFavorite && !localStorage.getItem('mediaSpaceToken')) {
+      window.alert('Favorilere eklemek için önce giriş yapmalısın.')
+      window.location.hash = '#login'
+      return
     }
+
+    const newFavoriteState = toggleFavorite(articleId, storageKey)
+    setIsFavorite(newFavoriteState)
+  }
 
   return (
     <button
@@ -397,17 +421,17 @@ function FavoriteButton({ articleId }: FavoriteButtonProps) {
 }
 
 function FavoritesPage() {
+  const favoritesStorageKey = getFavoritesStorageKey()
   const [favoriteIds, setFavoriteIds] = useState<string[]>(
     () => getFavoriteIds()
   )
-
   const [allArticles, setAllArticles] = useState<ApiArticle[]>([])
   const [isLoadingAllArticles, setIsLoadingAllArticles] = useState(true)
   const [articlesLoadError, setArticlesLoadError] = useState('')
 
   useEffect(() => {
     const updateFavorites = () => {
-      setFavoriteIds(getFavoriteIds())
+      setFavoriteIds(getFavoriteIds(favoritesStorageKey))
     }
 
     window.addEventListener('favoritesUpdated', updateFavorites)
@@ -415,7 +439,7 @@ function FavoritesPage() {
     return () => {
       window.removeEventListener('favoritesUpdated', updateFavorites)
     }
-  }, [])
+  }, [favoritesStorageKey])
 
   useEffect(() => {
     let isCancelled = false
