@@ -4,9 +4,65 @@ from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 from app.models import Article
-from urllib.parse import urlparse
 
 RSS_URL = 'https://www.haberturk.com/rss'
+
+_category_classifier = None
+_category_classifier_attempted = False
+
+AI_CATEGORY_LABELS = {
+    "general news": "Gündem",
+    "technology": "Teknoloji",
+    "science": "Bilim",
+    "business and economy": "İş Dünyası",
+    "culture and arts": "Kültür & Sanat",
+    "sports": "Spor",
+}
+
+
+def classify_title_with_ai(title: str) -> str | None:
+    global _category_classifier, _category_classifier_attempted
+
+    if not title:
+        return None
+
+    if not _category_classifier_attempted:
+        _category_classifier_attempted = True
+
+        try:
+            import torch
+            from transformers import pipeline
+
+            device = "mps" if torch.backends.mps.is_available() else "cpu"
+            _category_classifier = pipeline(
+                "zero-shot-classification",
+                model="MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
+                device=device,
+            )
+        except Exception as error:
+            print(f"AI kategori modeli yüklenemedi: {error}")
+            return None
+
+    if _category_classifier is None:
+        return None
+
+    try:
+        result = _category_classifier(
+            title,
+            candidate_labels=list(AI_CATEGORY_LABELS.keys()),
+        )
+        label = result["labels"][0]
+        score = result["scores"][0]
+
+        print(f"AI kategori tahmini: {label} ({score:.3f})")
+
+        if score < 0.70:
+            return None
+
+        return AI_CATEGORY_LABELS[label]
+    except Exception as error:
+        print(f"AI kategori tahmini başarısız: {error}")
+        return None
 
 def get_article_image(url: str):
     try:
@@ -100,7 +156,7 @@ def get_article_category(url: str, title: str = "") -> str:
 
     # Başlık yeterli değilse URL'nin bölümünü kontrol et.
     for section in sections[:-1]:
-        if section in category_map:
+        if section in category_map and category_map[section] != "Gündem":
             return category_map[section]
 
     # Bazı haberlerin kategorisi URL'nin sonundaki ifadede bulunabilir.
@@ -111,6 +167,10 @@ def get_article_category(url: str, title: str = "") -> str:
 
     if last_section.endswith("-bilim"):
         return "Bilim"
+
+    ai_category = classify_title_with_ai(title)
+    if ai_category:
+        return ai_category
 
     return "Gündem"
 
@@ -143,7 +203,13 @@ def import_rss_articles(db: Session):
     for entry in feed.entries:
         title = entry.get("title", "").strip()
         link = entry.get("link", "").strip()
-        content = entry.get("summary", "").strip()
+        rss_parts = entry.get("content", [])
+        content_html = (
+            rss_parts[0].get("value", "")
+            if rss_parts
+            else entry.get("summary", "")
+        )
+        content = BeautifulSoup(content_html, "html.parser").get_text(" ", strip=True)
 
         # Başlık veya bağlantı yoksa haberi atla.
         if not title or not link:
@@ -168,6 +234,9 @@ def import_rss_articles(db: Session):
         if existing_article:
             # Haberin kategorisini yeni kurallara göre güncelle.
             existing_article.category = get_article_category(link, title)
+
+            if content and len(content) > len(existing_article.content or ""):
+                existing_article.content = content
 
             # Yalnızca görseli eksik haberleri güncelle.
             if not existing_article.image_url and image_url:

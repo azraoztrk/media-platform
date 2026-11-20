@@ -5,6 +5,7 @@ from app.security import (
     create_access_token,
     decode_access_token
 )   
+from typing import Literal
 from sqlalchemy.orm import Session
 from app.database import get_db
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -26,6 +27,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
     ],
     allow_credentials=False,
     allow_methods=["*"],
@@ -129,6 +132,7 @@ def health_check():
 class Article(BaseModel):
     title: str
     content: str
+    image_url: str | None = None
 
 @app.post("/api/articles")                        #Depends: Veritabanı oturumunu endpoint’e sağlar.
 def create_article(article: Article, db: Session = Depends(get_db),
@@ -136,7 +140,8 @@ def create_article(article: Article, db: Session = Depends(get_db),
     ):
     db_article = ArticleModel(         #-->Yeni bir haber nesnesi oluşturur.
         title=article.title,
-        content=article.content
+        content=article.content,
+        image_url=article.image_url
     )
 
     db.add(db_article)          #Haberi kaydedilmek üzere oturuma ekler.
@@ -197,6 +202,36 @@ def get_articles(
         for article in articles
     ]
 
+@app.get("/api/articles/{article_id}")
+def get_article_by_id(
+    article_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel | None = Depends(get_optional_user),
+):
+    article = db.query(ArticleModel).filter(
+        ArticleModel.id == article_id
+    ).first()
+
+    if article is None:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    if (
+        not article.is_active
+        and (current_user is None or current_user.role == "USER")
+    ):
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    return {
+        "id": article.id,
+        "title": article.title,
+        "content": article.content,
+        "created_at": article.created_at,
+        "is_active": article.is_active,
+        "category": article.category,
+        "image_url": article.image_url,
+        "source_url": article.source_url,
+    }
+
 @app.put("/api/articles/{article_id}")
 def update_article(
     article_id: int,
@@ -211,8 +246,15 @@ def update_article(
     if db_article is None:
         return {"message": "Article not found"}
 
+    if db_article.source_url:
+        raise HTTPException(
+            status_code=403,
+            detail="RSS kaynaklı haberlerin içeriği düzenlenemez."
+        )
+
     db_article.title = article.title                  #(satır 74,75)İstek gövdesinden gelen yeni başlık ve içeriği mevcut kayda atıyoruz.
     db_article.content = article.content 
+    db_article.image_url = article.image_url
 
     db.commit()                                       #Son olarak değişiklikleri kaydediyoruz
     db.refresh(db_article)
@@ -230,6 +272,7 @@ def update_article(
 class ArticleUpdate(BaseModel):
     title: str | None = None
     content: str | None = None
+    image_url: str | None = None
 
 class UserCreate(BaseModel):
     email: str
@@ -238,6 +281,9 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: str
     password: str
+
+class UserRoleUpdate(BaseModel):
+    role: Literal["USER", "EDITOR", "ADMIN"]
 
 @app.patch("/api/articles/{article_id}")
 def patch_article(
@@ -252,6 +298,12 @@ def patch_article(
 
     if db_article is None:
         return {"message": "Article not found"}
+
+    if db_article.source_url:
+        raise HTTPException(
+            status_code=403,
+            detail="RSS kaynaklı haberlerin içeriği düzenlenemez."
+        )
 
     changes = article.model_dump(exclude_unset=True)
 
@@ -421,6 +473,105 @@ def admin_test(
         "email": current_user.email,
         "role": current_user.role
     }
+
+@app.get("/api/admin/users")
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_roles("ADMIN")),
+):
+    users = db.query(UserModel).order_by(UserModel.email).all()
+
+    return [
+        {
+            "id": user.id,
+            "email": user.email,
+            "role": user.role,
+            "created_at": user.created_at,
+        }
+        for user in users
+    ]
+
+@app.patch("/api/admin/users/{user_id}/role")
+def update_user_role(
+    user_id: int,
+    role_update: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_roles("ADMIN")),
+):
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.id == current_user.id and role_update.role != "ADMIN":
+        raise HTTPException(
+            status_code=400,
+            detail="Kendi admin rolünü değiştiremezsin.",
+        )
+
+    if user.role == "ADMIN" and role_update.role != "ADMIN":
+        other_admin_count = (
+            db.query(UserModel)
+            .filter(
+                UserModel.role == "ADMIN",
+                UserModel.id != user.id,
+            )
+            .count()
+        )
+
+        if other_admin_count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Sistemde en az bir admin hesabı kalmalı.",
+            )
+
+    user.role = role_update.role
+    db.commit()
+    db.refresh(user)
+
+    return {
+        "id": user.id,
+        "email": user.email,
+        "role": user.role,
+    }
+
+@app.delete("/api/admin/users/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(require_roles("ADMIN")),
+):
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+
+    if user is None:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
+
+    if user.id == current_user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Kendi hesabını silemezsin.",
+        )
+
+    if user.role == "ADMIN":
+        other_admin_count = (
+            db.query(UserModel)
+            .filter(
+                UserModel.role == "ADMIN",
+                UserModel.id != user.id,
+            )
+            .count()
+        )
+
+        if other_admin_count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Sistemde en az bir admin hesabı kalmalı.",
+            )
+
+    db.delete(user)
+    db.commit()
+
+    return {"message": "Kullanıcı silindi."}
 
 @app.post("/api/rss/import")                        #RSS haberlerini içe aktarır.
 def import_rss(

@@ -1,4 +1,4 @@
-import { useEffect, useState, type SyntheticEvent } from 'react'
+import { useCallback, useEffect, useState, type SyntheticEvent } from 'react'
 type ApiArticle = {
   id: number
   title: string
@@ -9,6 +9,16 @@ type ApiArticle = {
   image_url: string | null
   source_url: string | null
 }
+
+type UserRole = 'USER' | 'EDITOR' | 'ADMIN'
+
+type AdminUser = {
+  id: number
+  email: string
+  role: UserRole
+  created_at: string
+}
+
 import './App.css'
 
 const categories = [
@@ -18,96 +28,6 @@ const categories = [
   'İş Dünyası',
   'Kültür & Sanat',
   'Spor',
-]
-
-const trendingArticles = [
-  {
-    number: '01',
-    id: 'technology-1',
-    category: 'TEKNOLOJİ',
-    title: 'Yapay zekâ yazılım dünyasını nasıl değiştiriyor?',
-    image:
-      'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=500&q=85',
-  },
-  {
-    number: '02',
-    id: 'science-1',
-    category: 'BİLİM',
-    title: 'Bilim dünyasında yeni keşifler',
-    image:
-      'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=500&q=85',
-  },
-  {
-    number: '03',
-    id: 'business-1',
-    category: 'İŞ DÜNYASI',
-    title: 'Dijital dönüşümün yeni dönemi',
-    image:
-      'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=500&q=85',
-  },
-]
-
-const articles = [
-  {
-    id: 'technology-1',
-    category: 'TEKNOLOJİ',
-    title: 'Yapay zekâ çağında yazılım geliştirmenin değişen yüzü',
-    description:
-      'Yeni araçlar, değişen alışkanlıklar ve yazılım geliştirmenin geleceği.',
-    image:
-      'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=900&q=85',
-    time: '6 dk.',
-  },
-  {
-    id: 'science-1',
-    category: 'BİLİM',
-    title: 'Evren hakkında bildiklerimizi değiştiren keşifler',
-    description:
-      'Bilim insanlarının araştırmaları geleceğe dair yeni sorular doğuruyor.',
-    image:
-      'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=900&q=85',
-    time: '4 dk.',
-  },
-  {
-    id: 'business-1',
-    category: 'İŞ DÜNYASI',
-    title: 'Geleceğin çalışma hayatı nasıl şekilleniyor?',
-    description:
-      'Teknoloji, yeni çalışma biçimleri ve değişen iş kültürü.',
-    image:
-      'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=900&q=85',
-    time: '5 dk.',
-  },
-  {
-    id: 'culture-1',
-    category: 'KÜLTÜR & SANAT',
-    title: 'Şehirlerin hikâyelerini anlatan mekânlar',
-    description:
-      'Mimari ve kültürel hafıza arasındaki görünmez bağlantılar.',
-    image:
-      'https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=900&q=85',
-    time: '3 dk.',
-  },
-  {
-    id: 'science-2',
-    category: 'BİLİM',
-    title: 'Okyanusların derinliklerinde keşfedilmeyi bekleyenler',
-    description:
-      'Dünyamızın henüz tam olarak tanımadığımız ekosistemleri.',
-    image:
-      'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=900&q=85',
-    time: '7 dk.',
-  },
-  {
-    id: 'news-1',
-    category: 'GÜNDEM',
-    title: 'Daha yaşanabilir şehirler için yeni fikirler',
-    description:
-      'Kent yaşamını dönüştüren tasarımlar ve sürdürülebilir çözümler.',
-    image:
-      'https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=900&q=85',
-    time: '5 dk.',
-  },
 ]
 
 function SearchIcon() {
@@ -123,14 +43,6 @@ function ArrowIcon() {
   return (
     <svg viewBox='0 0 24 24' aria-hidden='true'>
       <path d='M5 12h14M13 5l7 7-7 7' />
-    </svg>
-  )
-}
-
-function BookmarkIcon() {
-  return (
-    <svg viewBox='0 0 24 24' aria-hidden='true'>
-      <path d='M6.5 4.5h11v16l-5.5-3.8-5.5 3.8z' />
     </svg>
   )
 }
@@ -439,10 +351,16 @@ function FavoriteButton({ articleId }: FavoriteButtonProps) {
     }
   }, [articleId])
 
-  const handleClick = () => {
-    const newFavoriteState = toggleFavorite(articleId)
-    setIsFavorite(newFavoriteState)
-  }
+    const handleClick = () => {
+      if (!isFavorite && !localStorage.getItem('mediaSpaceToken')) {
+        window.alert('Favorilere eklemek için önce giriş yapmalısın.')
+        window.location.hash = '#login'
+        return
+      }
+
+      const newFavoriteState = toggleFavorite(articleId)
+      setIsFavorite(newFavoriteState)
+    }
 
   return (
     <button
@@ -478,14 +396,14 @@ function FavoriteButton({ articleId }: FavoriteButtonProps) {
   )
 }
 
-function FavoritesPage({
-  apiArticles,
-}: {
-  apiArticles: ApiArticle[]
-}) {
+function FavoritesPage() {
   const [favoriteIds, setFavoriteIds] = useState<string[]>(
     () => getFavoriteIds()
   )
+
+  const [allArticles, setAllArticles] = useState<ApiArticle[]>([])
+  const [isLoadingAllArticles, setIsLoadingAllArticles] = useState(true)
+  const [articlesLoadError, setArticlesLoadError] = useState('')
 
   useEffect(() => {
     const updateFavorites = () => {
@@ -499,7 +417,64 @@ function FavoritesPage({
     }
   }, [])
 
-  const favoriteArticles = apiArticles.filter((article) =>
+  useEffect(() => {
+    let isCancelled = false
+
+    async function fetchAllArticles() {
+      const token = localStorage.getItem('mediaSpaceToken')
+      const loadedArticles: ApiArticle[] = []
+      const pageSize = 100
+      let offset = 0
+
+      try {
+        while (true) {
+          const response = await fetch(
+            `http://127.0.0.1:8000/api/articles?limit=${pageSize}&offset=${offset}`,
+            {
+              headers: token
+                ? { Authorization: `Bearer ${token}` }
+                : {},
+            }
+          )
+
+          if (!response.ok) {
+            throw new Error('Haberler alınamadı.')
+          }
+
+          const batch: ApiArticle[] = await response.json()
+          loadedArticles.push(...batch)
+
+          if (batch.length < pageSize) {
+            break
+          }
+
+          offset += pageSize
+        }
+
+        if (!isCancelled) {
+          setAllArticles(loadedArticles)
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setArticlesLoadError(
+            error instanceof Error ? error.message : 'Haberler alınamadı.'
+          )
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingAllArticles(false)
+        }
+      }
+    }
+
+    fetchAllArticles()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
+
+  const favoriteArticles = allArticles.filter((article) =>
     favoriteIds.includes(String(article.id))
   )
 
@@ -528,7 +503,14 @@ function FavoritesPage({
           </p>
         </div>
 
-        {favoriteArticles.length === 0 ? (
+        {isLoadingAllArticles ? (
+          <p className='articles-message'>Favoriler yükleniyor...</p>
+        ) : articlesLoadError ? (
+          <p className='articles-message' role='alert'>
+            {articlesLoadError}
+          </p>
+        ) : favoriteArticles.length === 0 ? (
+
           <div className='favorites-empty'>
             <div className='favorites-empty-icon'>♡</div>
 
@@ -572,7 +554,7 @@ function FavoritesPage({
                       {article.category}
                     </span>
 
-                    <FavoriteButton articleId={article.id} />
+                    <FavoriteButton articleId={String(article.id)} />
                   </div>
 
                   <h3>
@@ -589,7 +571,9 @@ function FavoritesPage({
 
                   <div className='article-footer'>
                     <span>MEDIA SPACE EDİTÖRÜ</span>
-                    <span>{article.time} okuma</span>
+                    <span>
+                      {Math.max(1, Math.ceil(article.content.split(/\s+/).length / 200))} dk okuma
+                    </span>
                   </div>
                 </div>
               </article>
@@ -613,17 +597,77 @@ function ArticleDetail({
   apiArticles: ApiArticle[]
   suggestionArticles: ApiArticle[]
 }) {
-  const articleId = window.location.hash.split('/')[1]
+    const articleId = window.location.hash.split('/')[1]
 
-  const article = [...apiArticles, ...suggestionArticles].find(
+    const articleFromCurrentLists = [...apiArticles, ...suggestionArticles].find(
     (item) => String(item.id) === articleId
   )
+
+  const [fetchedArticle, setFetchedArticle] = useState<ApiArticle | null>(null)
+  const [isLoadingArticle, setIsLoadingArticle] = useState(true)
+
+  useEffect(() => {
+    let isCancelled = false
+
+    if (articleFromCurrentLists) {
+      setFetchedArticle(articleFromCurrentLists)
+      setIsLoadingArticle(false)
+      return
+    }
+
+    setIsLoadingArticle(true)
+
+    async function fetchArticle() {
+      const token = localStorage.getItem('mediaSpaceToken')
+
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/articles/${articleId}`,
+          {
+            headers: token
+              ? { Authorization: `Bearer ${token}` }
+              : {},
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error('Haber bulunamadı.')
+        }
+
+        const data: ApiArticle = await response.json()
+
+        if (!isCancelled) {
+          setFetchedArticle(data)
+        }
+      } catch {
+        if (!isCancelled) {
+          setFetchedArticle(null)
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingArticle(false)
+        }
+      }
+    }
+
+    fetchArticle()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [articleId, apiArticles, suggestionArticles])
+
+  const article =
+    articleFromCurrentLists ??
+    (fetchedArticle && String(fetchedArticle.id) === articleId
+      ? fetchedArticle
+      : null)
 
   if (!article) {
     return (
       <div className='article-page'>
         <main className='article-main'>
-          <h1>Haber bulunamadı.</h1>
+          <h1>{isLoadingArticle ? 'Haber yükleniyor...' : 'Haber bulunamadı.'}</h1>
           <a href='#'>Ana sayfaya dön</a>
         </main>
       </div>
@@ -697,7 +741,7 @@ function ArticleDetail({
           <div className='article-content-top'>
             <span className='section-eyebrow'>MAKALE</span>
 
-            <FavoriteButton articleId={article.id} />
+            <FavoriteButton articleId={String(article.id)} />
           </div>
 
           <p className='article-lead'>
@@ -706,19 +750,22 @@ function ArticleDetail({
 
           <h2>{article.title}</h2>
 
-          <p>
-            {article.content} Bu konudaki gelişmeleri
-            anlamak için mevcut bilgileri, yeni araştırmaları
-            ve farklı bakış açılarını birlikte değerlendirmek
-            gerekiyor.
-          </p>
+          {article.source_url && (
+            <div>
+              <p>
+                Bu sayfada haberin kısa özeti yer alıyor. Haberin tüm ayrıntıları için kaynağı ziyaret edebilirsin.
+              </p>
 
-          <p>
-            Önümüzdeki dönemde bu alandaki gelişmelerin nasıl
-            şekilleneceğini takip etmek, konunun sunduğu
-            fırsatları ve beraberinde getirdiği soruları
-            daha iyi anlamamıza yardımcı olabilir.
-          </p>
+              <a
+                className='text-link'
+                href={article.source_url}
+                target='_blank'
+                rel='noopener noreferrer'
+              >
+                Kaynağında haberin tamamını oku ↗
+              </a>
+            </div>
+          )}
 
           <div className='article-end'>
             <span>MEDIA SPACE</span>
@@ -735,6 +782,501 @@ function ArticleDetail({
   )
 }
 
+function AdminUsersPage() {
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [selectedRoles, setSelectedRoles] = useState<Record<number, UserRole>>({})
+  const [isLoading, setIsLoading] = useState(true)
+  const [savingUserId, setSavingUserId] = useState<number | null>(null)
+  const [deletingUserId, setDeletingUserId] = useState<number | null>(null)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const loadUsers = useCallback(async () => {
+    const token = localStorage.getItem('mediaSpaceToken')
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/admin/users', {
+        headers: token
+          ? { Authorization: `Bearer ${token}` }
+          : {},
+      })
+
+      if (!response.ok) {
+        throw new Error('Kullanıcı listesi alınamadı.')
+      }
+
+      const data: AdminUser[] = await response.json()
+      setUsers(data)
+
+      const rolesByUserId: Record<number, UserRole> = {}
+      data.forEach((user) => {
+        rolesByUserId[user.id] = user.role
+      })
+      setSelectedRoles(rolesByUserId)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadUsers()
+  }, [loadUsers])
+
+  async function saveRole(user: AdminUser) {
+    const newRole = selectedRoles[user.id] ?? user.role
+
+    if (newRole === user.role) {
+      return
+    }
+
+    if (!window.confirm(`${user.email} hesabının rolünü ${newRole} yapmak istiyor musun?`)) {
+      return
+    }
+
+    const token = localStorage.getItem('mediaSpaceToken')
+    setSavingUserId(user.id)
+    setMessage('')
+    setError('')
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/admin/users/${user.id}/role`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ role: newRole }),
+        }
+      )
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.detail || 'Rol değiştirilemedi.')
+      }
+
+      setMessage('Kullanıcı rolü güncellendi.')
+      await loadUsers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    } finally {
+      setSavingUserId(null)
+    }
+  }
+
+  async function deleteUser(user: AdminUser) {
+    const confirmed = window.confirm(
+      `${user.email} hesabını silmek istiyor musun? Bu işlem geri alınamaz.`
+    )
+
+    if (!confirmed) return
+
+    const token = localStorage.getItem('mediaSpaceToken')
+    setDeletingUserId(user.id)
+    setMessage('')
+    setError('')
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/admin/users/${user.id}`,
+        {
+          method: 'DELETE',
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        }
+      )
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.detail || 'Kullanıcı silinemedi.')
+      }
+
+      setMessage(`${user.email} hesabı silindi.`)
+      await loadUsers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    } finally {
+      setDeletingUserId(null)
+    }
+  }
+
+  return (
+    <div className='app-shell'>
+      <header className='site-header'>
+        <a className='brand' href='#'>
+          media space<span>.</span>
+        </a>
+        <span>Admin · Kullanıcı Yönetimi</span>
+        <a className='login-button' href='#dashboard'>Haber Yönetimi</a>
+      </header>
+
+      <main className='section-container dashboard-main'>
+        <div className='section-header'>
+          <div>
+            <span className='section-eyebrow'>HESAP VE ROLLER</span>
+            <h1>Kullanıcı Yönetimi</h1>
+          </div>
+        </div>
+
+        {message && <p role='status'>{message}</p>}
+        {error && <p role='alert'>{error}</p>}
+
+        {isLoading ? (
+          <p>Kullanıcılar yükleniyor...</p>
+        ) : (
+          <div className='dashboard-article-list'>
+            {users.map((user) => (
+              <article className='dashboard-article' key={user.id}>
+                <div>
+                  <strong>{user.email}</strong>
+                  <p>
+                    Kayıt tarihi:{' '}
+                    {new Intl.DateTimeFormat('tr-TR').format(
+                      new Date(user.created_at)
+                    )}
+                  </p>
+                </div>
+
+                <div className='dashboard-article-actions'>
+                  <select
+                    value={selectedRoles[user.id] ?? user.role}
+                    onChange={(event) =>
+                      setSelectedRoles({
+                        ...selectedRoles,
+                        [user.id]: event.target.value as UserRole,
+                      })
+                    }
+                    aria-label={`${user.email} rolü`}
+                  >
+                    <option value='USER'>Kullanıcı</option>
+                    <option value='EDITOR'>Editör</option>
+                    <option value='ADMIN'>Admin</option>
+                  </select>
+
+                  <button
+                    type='button'
+                    onClick={() => saveRole(user)}
+                    disabled={savingUserId === user.id}
+                  >
+                    {savingUserId === user.id ? 'Kaydediliyor...' : 'Rolü kaydet'}                   <button
+                    type='button'
+                    onClick={() => deleteUser(user)}
+                    disabled={deletingUserId === user.id}
+                  >
+                    {deletingUserId === user.id ? 'Siliniyor...' : 'Sil'}
+                  </button>
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+
+type EditorialDashboardProps = {
+  userRole: 'EDITOR' | 'ADMIN'
+}
+
+function EditorialDashboard({ userRole }: EditorialDashboardProps) {
+  const [articles, setArticles] = useState<ApiArticle[]>([])
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
+  const [editingArticleId, setEditingArticleId] = useState<number | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+
+  const loadArticles = useCallback(async () => {
+    const token = localStorage.getItem('mediaSpaceToken')
+
+    try {
+      const response = await fetch(
+        'http://127.0.0.1:8000/api/articles?limit=100&offset=0',
+        {
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Haber listesi alınamadı.')
+      }
+
+      const data: ApiArticle[] = await response.json()
+      setArticles(data)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadArticles()
+  }, [loadArticles])
+
+  function resetForm() {
+    setTitle('')
+    setContent('')
+    setEditingArticleId(null)
+    setImageUrl('')
+  }
+
+  async function handleSave(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setIsSaving(true)
+    setMessage('')
+    setError('')
+
+    const token = localStorage.getItem('mediaSpaceToken')
+    const isEditing = editingArticleId !== null
+
+    try {
+      const response = await fetch(
+        isEditing
+          ? `http://127.0.0.1:8000/api/articles/${editingArticleId}`
+          : 'http://127.0.0.1:8000/api/articles',
+        {
+          method: isEditing ? 'PUT' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            title,
+            content,
+            image_url: imageUrl.trim() || null,
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Haber kaydedilemedi. Yetkini kontrol et.')
+      }
+
+      setMessage(isEditing ? 'Haber güncellendi.' : 'Haber eklendi.')
+      resetForm()
+      await loadArticles()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleStatusChange(article: ApiArticle) {
+    const token = localStorage.getItem('mediaSpaceToken')
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/articles/${article.id}/status?is_active=${!article.is_active}`,
+        {
+          method: 'PATCH',
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Haberin yayın durumu değiştirilemedi.')
+      }
+
+      setMessage(article.is_active ? 'Haber yayından kaldırıldı.' : 'Haber yayımlandı.')
+      await loadArticles()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    }
+  }
+
+  async function handleDelete(article: ApiArticle) {
+    if (!window.confirm(`“${article.title}” haberini kalıcı olarak silmek istiyor musun?`)) {
+      return
+    }
+
+    const token = localStorage.getItem('mediaSpaceToken')
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/articles/${article.id}`,
+        {
+          method: 'DELETE',
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Haber silinemedi. Bu işlem yalnızca admin içindir.')
+      }
+
+      setMessage('Haber silindi.')
+      await loadArticles()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    }
+  }
+
+  async function handleRssImport() {
+    const token = localStorage.getItem('mediaSpaceToken')
+    setError('')
+    setMessage('RSS haberleri içe aktarılıyor...')
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/rss/import', {
+        method: 'POST',
+        headers: token
+          ? { Authorization: `Bearer ${token}` }
+          : {},
+      })
+
+      if (!response.ok) {
+        throw new Error('RSS aktarımı başarısız. Yetkini kontrol et.')
+      }
+
+      const result = await response.json()
+      setMessage(`RSS aktarımı tamamlandı. Eklenen haber: ${result.added}`)
+      await loadArticles()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    }
+  }
+
+  return (
+    <div className='app-shell'>
+      <header className='site-header'>
+        <a className='brand' href='#'>
+          media space<span>.</span>
+        </a>
+        <span>{userRole === 'ADMIN' ? 'Admin Paneli' : 'Editör Paneli'}</span>
+        <a className='login-button' href='#'>Ana sayfa</a>
+        {userRole === 'ADMIN' && (
+          <a className="login-button" href="#admin/users">
+            Kullanıcı Yönetimi
+          </a>
+        )}
+      </header>
+
+      <main className='section-container dashboard-main'>
+        <div className='section-header'>
+          <div>
+            <span className='section-eyebrow'>HABER YÖNETİMİ</span>
+            <h1>{editingArticleId ? 'Haberi düzenle' : 'Yeni haber ekle'}</h1>
+          </div>
+          <button className='text-link' type='button' onClick={handleRssImport}>
+            RSS haberlerini içe aktar
+          </button>
+        </div>
+
+        <form className='auth-form dashboard-form' onSubmit={handleSave}>
+          <label>
+            Haber başlığı
+            <input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              required
+            />
+          </label>
+
+          <label>
+            Haber içeriği
+            <textarea
+              value={content}
+              onChange={(event) => setContent(event.target.value)}
+              rows={8}
+              required
+            />
+          </label>
+
+          <label>
+            Resim URL’si (isteğe bağlı)
+            <input
+              type='url'
+              value={imageUrl}
+              onChange={(event) => setImageUrl(event.target.value)}
+              placeholder='https://ornek.com/resim.jpg'
+            />
+          </label>
+          <p>Manuel eklenen haberler varsayılan olarak Gündem kategorisine kaydedilir.</p>
+
+          <button className='auth-submit' type='submit' disabled={isSaving}>
+            {isSaving ? 'Kaydediliyor...' : editingArticleId ? 'Değişiklikleri kaydet' : 'Haberi ekle'}
+          </button>
+
+          {editingArticleId !== null && (
+            <button className='dashboard-secondary-button' type='button' onClick={resetForm}>
+              Düzenlemeyi iptal et
+            </button>
+          )}
+        </form>
+
+        {message && <p role='status'>{message}</p>}
+        {error && <p role='alert'>{error}</p>}
+
+        <h2>Haberler</h2>
+
+        {isLoading ? (
+          <p>Haberler yükleniyor...</p>
+        ) : (
+          <div className='dashboard-article-list'>
+            {articles.map((article) => (
+              <article className='dashboard-article' key={article.id}>
+                <div>
+                  <strong>{article.title}</strong>
+                  <p>{article.category} · {article.is_active ? 'Yayında' : 'Yayında değil'}</p>
+                </div>
+
+                <div className='dashboard-article-actions'>
+                  {!article.source_url && (
+                    <button
+                      type='button'
+                      onClick={() => {
+                        setEditingArticleId(article.id)
+                        setTitle(article.title)
+                        setContent(article.content)
+                        setImageUrl(article.image_url ?? '')
+                      }}
+                    >
+                      Düzenle
+                    </button>
+                  )}
+
+                  <button type='button' onClick={() => handleStatusChange(article)}>
+                    {article.is_active ? 'Yayından kaldır' : 'Yayımla'}
+                  </button>
+
+                  {userRole === 'ADMIN' && (
+                    <button type='button' onClick={() => handleDelete(article)}>
+                      Sil
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+
 function App() {
   const [currentPage, setCurrentPage] = useState(
     window.location.hash
@@ -744,14 +1286,65 @@ function App() {
     () => Boolean(localStorage.getItem('mediaSpaceToken'))
   )
 
+  const [userRole, setUserRole] = useState<'USER' | 'EDITOR' | 'ADMIN' | null>(null)
   const [apiArticles, setApiArticles] = useState<ApiArticle[]>([])
   const [suggestionArticles, setSuggestionArticles] = useState<ApiArticle[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [submittedSearch, setSubmittedSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [articlePage, setArticlePage] = useState(0)
+  const [hasNextPage, setHasNextPage] = useState(false)
+  const pageSize = 9
   const [isLoadingArticles, setIsLoadingArticles] = useState(false)
   const [articlesError, setArticlesError] = useState('')
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setUserRole(null)
+      return
+    }
+
+    let isCancelled = false
+
+    async function fetchUserRole() {
+      const token = localStorage.getItem('mediaSpaceToken')
+
+      if (!token) {
+        setUserRole(null)
+        return
+      }
+
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/auth/me', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error('Kullanıcı rolü alınamadı.')
+        }
+
+        const user: { role: 'USER' | 'EDITOR' | 'ADMIN' } =
+          await response.json()
+
+        if (!isCancelled) {
+          setUserRole(user.role)
+        }
+      } catch {
+        if (!isCancelled) {
+          setUserRole(null)
+        }
+      }
+    }
+
+    fetchUserRole()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [isLoggedIn])
 
   useEffect(() => {
   const token = localStorage.getItem('mediaSpaceToken')
@@ -775,6 +1368,8 @@ function App() {
       if (selectedCategory) {
         params.set('category', selectedCategory)
       }
+      params.set('limit', String(pageSize + 1))
+      params.set('offset', String(articlePage * pageSize))
 
       const response = await fetch(
        `http://127.0.0.1:8000/api/articles?${params.toString()}`,       {
@@ -799,7 +1394,8 @@ function App() {
         const data: ApiArticle[] = await response.json()
 
         if (!isCancelled) {
-          setApiArticles(data)
+          setHasNextPage(data.length > pageSize)
+          setApiArticles(data.slice(0, pageSize))
         }
       } catch (error) {
         if (!isCancelled) {
@@ -821,7 +1417,7 @@ function App() {
     return () => {
       isCancelled = true
     }
-  }, [isLoggedIn, submittedSearch, selectedCategory])
+  }, [isLoggedIn, submittedSearch, selectedCategory, articlePage])
   useEffect(() => {
     const query = searchTerm.trim()
 
@@ -897,8 +1493,47 @@ function App() {
     )
   }
 
+  if (currentPage === '#admin/users') {
+    if (!isLoggedIn) {
+      return (
+        <AuthPage
+          mode='login'
+          onLogin={() => setIsLoggedIn(true)}
+        />
+      )
+    }
+    if (userRole !== 'ADMIN') {
+      return <main className="dashboard-main">Bu sayfayı yalnızca adminler görüntüleyebilir.</main>
+    }
+    return <AdminUsersPage />
+  }
+
+  if (currentPage === '#dashboard') {
+    if (!isLoggedIn) {
+      return (
+        <AuthPage
+          mode='login'
+          onLogin={() => setIsLoggedIn(true)}
+        />
+      )
+    }
+
+    if (userRole === 'EDITOR' || userRole === 'ADMIN') {
+      return <EditorialDashboard userRole={userRole} />
+    }
+
+    return (
+      <div className='app-shell'>
+        <main className='section-container dashboard-main'>
+          <h1>Bu sayfa için editör veya admin yetkisi gerekiyor.</h1>
+          <a href='#'>Ana sayfaya dön</a>
+        </main>
+      </div>
+    )
+  }
+
   if (currentPage === '#favorites') {
-    return <FavoritesPage apiArticles={apiArticles} />
+    return <FavoritesPage />
   }
 
   if (currentPage.startsWith('#article/')) {
@@ -926,7 +1561,10 @@ function App() {
         <nav className='desktop-nav' aria-label='Kategoriler'>
           <a
             href='#latest'
-            onClick={() => setSelectedCategory('')}
+            onClick={() => {
+              setSelectedCategory('')
+              setArticlePage(0)
+            }}
           >
             Tümü
           </a>
@@ -934,12 +1572,21 @@ function App() {
             <a
               key={category}
               href='#latest'
-              onClick={() => setSelectedCategory(category)}
+              onClick={() => {
+                setSelectedCategory(category)
+                setArticlePage(0)
+              }} 
             >
               {category}
             </a>
           ))}
         </nav>
+
+        {(userRole === 'EDITOR' || userRole === 'ADMIN') && (
+          <a className='favorites-nav-link' href='#dashboard'>
+            Yönetim Paneli
+          </a>
+        )}
 
         <div className='header-actions'>
           <a className='favorites-nav-link' href='#favorites'>
@@ -966,6 +1613,7 @@ function App() {
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     setSubmittedSearch(searchTerm.trim())
+                    setArticlePage(0)
                   }
                 }}
                 autoFocus
@@ -1178,6 +1826,29 @@ function App() {
           ))}
             </div>
           )}
+
+          {!isLoadingArticles && !articlesError && apiArticles.length > 0 && (
+            <nav className='pagination' aria-label='Haber sayfaları'>
+              <button
+                type='button'
+                onClick={() => setArticlePage((page) => Math.max(0, page - 1))}
+                disabled={articlePage === 0}
+              >
+                Önceki
+              </button>
+
+              <span aria-live='polite'>Sayfa {articlePage + 1}</span>
+
+              <button
+                type='button'
+                onClick={() => setArticlePage((page) => page + 1)}
+                disabled={!hasNextPage}
+              >
+                Sonraki
+              </button>
+            </nav>
+          )}
+
         </section>
       </main>
 
