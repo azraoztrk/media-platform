@@ -162,7 +162,7 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
     <div className='auth-page'>
       <header className='auth-header'>
         <a className='brand' href='#'>
-          media space<span>.</span>
+          NewsTrack<span>.</span>
         </a>
 
         <a className='auth-back-link' href='#'>
@@ -173,7 +173,7 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
       <main className='auth-main'>
         <div className='auth-intro'>
           <span className='section-eyebrow'>
-            MEDIA SPACE ÜYELİĞİ
+            NEWSTRACK ÜYELİĞİ
           </span>
 
           <h1>
@@ -294,7 +294,7 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
       </main>
 
       <footer className='auth-footer'>
-        <span>© 2026 MEDIA SPACE</span>
+        <span>© 2026 NEWSTRACK</span>
         <span>Dünyaya farklı bir açıdan bak.</span>
       </footer>
     </div>
@@ -340,7 +340,7 @@ function ForgotPasswordPage() {
   return (
     <div className='auth-page'>
       <header className='auth-header'>
-        <a className='brand' href='#'>media space<span>.</span></a>
+        <a className='brand' href='#'>NewsTrack<span>.</span></a>
         <a className='auth-back-link' href='#login'>← Giriş yap</a>
       </header>
 
@@ -429,7 +429,7 @@ function ResetPasswordPage({ token }: { token: string }) {
   return (
     <div className='auth-page'>
       <header className='auth-header'>
-        <a className='brand' href='#'>media space<span>.</span></a>
+        <a className='brand' href='#'>NewsTrack<span>.</span></a>
         <a className='auth-back-link' href='#login'>← Giriş yap</a>
       </header>
 
@@ -504,7 +504,17 @@ function getFavoritesStorageKey(): string {
     const payload = JSON.parse(atob(normalized)) as { sub?: string }
     const account = payload.sub?.trim().toLocaleLowerCase('en-US')
 
-    return account ? `${FAVORITES_KEY}:${account}` : guestKey
+   if (!account) return guestKey
+
+    const accountKey = `${FAVORITES_KEY}:${account}`
+    const oldFavorites = localStorage.getItem(FAVORITES_KEY)
+
+    if (!localStorage.getItem(accountKey) && oldFavorites) {
+      localStorage.setItem(accountKey, oldFavorites)
+      localStorage.removeItem(FAVORITES_KEY)
+    }
+
+    return accountKey
   } catch {
     return guestKey
   }
@@ -689,7 +699,7 @@ function FavoritesPage() {
     <div className='favorites-page'>
       <header className='article-header'>
         <a className='brand' href='#'>
-          media space<span>.</span>
+          NewsTrack<span>.</span>
         </a>
 
         <a className='article-back-link' href='#'>
@@ -777,7 +787,7 @@ function FavoritesPage() {
                   </p>
 
                   <div className='article-footer'>
-                    <span>MEDIA SPACE EDİTÖRÜ</span>
+                    <span>NEWSTRACK EDİTÖRÜ</span>
                     <span>
                       {Math.max(1, Math.ceil(article.content.split(/\s+/).length / 200))} dk okuma
                     </span>
@@ -790,7 +800,7 @@ function FavoritesPage() {
       </main>
 
       <footer className='article-footer'>
-        <span>© 2026 MEDIA SPACE</span>
+        <span>© 2026 NEWSTRACK</span>
         <a href='#'>Ana sayfaya dön ↑</a>
       </footer>
     </div>
@@ -885,7 +895,7 @@ function ArticleDetail({
     <div className='article-page'>
       <header className='article-header'>
         <a className='brand' href='#'>
-          media space<span>.</span>
+          NewsTrack<span>.</span>
         </a>
 
         <a className='article-back-link' href='#'>
@@ -909,7 +919,7 @@ function ArticleDetail({
           <div className='article-meta'>
             <div>
               <span className='article-meta-label'>YAZAR</span>
-              <span>Media Space Editörleri</span>
+              <span>NewsTrack Editörleri</span>
             </div>
 
             <div>
@@ -975,14 +985,14 @@ function ArticleDetail({
           )}
 
           <div className='article-end'>
-            <span>MEDIA SPACE</span>
+            <span>NEWSTRACK</span>
             <p>Fikirlerin ve hikâyelerin buluşma noktası.</p>
           </div>
         </div>
       </main>
 
       <footer className='article-footer'>
-        <span>© 2026 MEDIA SPACE</span>
+        <span>© 2026 NEWSTRACK</span>
         <a href='#'>Ana sayfaya dön ↑</a>
       </footer>
     </div>
@@ -1092,7 +1102,7 @@ function AccountPage({ onDeleted }: { onDeleted: () => void }) {
     <div className='app-shell'>
       <header className='site-header'>
         <a className='brand' href='#'>
-          media space<span>.</span>
+          NewsTrack<span>.</span>
         </a>
         <a className='login-button' href='#'>
           Ana sayfa
@@ -1277,7 +1287,7 @@ function AdminUsersPage() {
     <div className='app-shell'>
       <header className='site-header'>
         <a className='brand' href='#'>
-          media space<span>.</span>
+          NewsTrack<span>.</span>
         </a>
         <span>Admin · Kullanıcı Yönetimi</span>
         <a className='login-button' href='#dashboard'>Haber Yönetimi</a>
@@ -1533,7 +1543,7 @@ function EditorialDashboard({ userRole }: EditorialDashboardProps) {
     <div className='app-shell'>
       <header className='site-header'>
         <a className='brand' href='#'>
-          media space<span>.</span>
+          NewsTrack<span>.</span>
         </a>
         <span>{userRole === 'ADMIN' ? 'Admin Paneli' : 'Editör Paneli'}</span>
         <a className='login-button' href='#'>Ana sayfa</a>
@@ -1947,8 +1957,8 @@ function App() {
   return (
     <div className='app-shell'>
       <header className='site-header'>
-        <a className='brand' href='#' aria-label='Media Space ana sayfa'>
-          media space<span>.</span>
+        <a className='brand' href='#' aria-label='NewsTrack ana sayfa'>
+          NewsTrack<span>.</span>
         </a>
 
         <nav className='desktop-nav' aria-label='Kategoriler'>
@@ -1975,19 +1985,22 @@ function App() {
           ))}
         </nav>
 
-        {(userRole === 'EDITOR' || userRole === 'ADMIN') && (
-          <a className='favorites-nav-link' href='#dashboard'>
-            Yönetim Paneli
-          </a>
-        )}
-
-        {isLoggedIn && (
-          <a className='favorites-nav-link' href='#account'>
-            Hesabım
-          </a>
-        )}
+  
 
         <div className='header-actions'>
+          
+          {(userRole === 'EDITOR' || userRole === 'ADMIN') && (
+            <a className='favorites-nav-link' href='#dashboard'>
+              Yönetim Paneli
+            </a>
+          )}
+
+          {isLoggedIn && (
+            <a className='favorites-nav-link' href='#account'>
+              Hesabım
+            </a>
+          )}
+            
           <a className='favorites-nav-link' href='#favorites'>
             Favorilerim
           </a>
@@ -2211,7 +2224,7 @@ function App() {
                     : article.content}
                 </p>
                 <div className='article-footer'>
-                  <span>MEDIA SPACE EDİTÖRÜ</span>
+                  <span>NEWSTRACK EDİTÖRÜ</span>
                   <span>
                     {new Intl.DateTimeFormat('tr-TR', {
                       day: 'numeric',
@@ -2253,12 +2266,12 @@ function App() {
 
       <footer className='site-footer'>
         <a className='footer-brand' href='#'>
-          media space<span>.</span>
+          NewsTrack<span>.</span>
         </a>
 
         <p>Dünyaya farklı bir açıdan bak.</p>
 
-        <span>© 2026 MEDIA SPACE</span>
+        <span>© 2026 NEWSTRACK</span>
       </footer>
     </div>
   )

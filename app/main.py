@@ -25,7 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field                                  #Field, parola için minimum uzunluk belirlememizi sağlar.
 
 app = FastAPI(
-    title="Media Platform API",
+    title="NewsTrack API",
     description="Media content management and tracking platform",
     version="1.0.0"
 )
@@ -496,7 +496,7 @@ def verify_email(
           <head><meta charset="utf-8"><title>E-posta doğrulandı</title></head>
           <body>
             <h1>E-posta adresin doğrulandı.</h1>
-            <p>Artık Media Space hesabına giriş yapabilirsin.</p>
+            <p>Artık NewsTrack hesabına giriş yapabilirsin.</p>
             <a href="{frontend_url}/#login">Giriş sayfasına dön</a>
           </body>
         </html>

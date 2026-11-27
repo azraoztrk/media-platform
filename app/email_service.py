@@ -28,12 +28,12 @@ def send_verification_email(to_email: str, token: str) -> None:
     )
 
     message = EmailMessage()
-    message["Subject"] = "Media Space e-posta doğrulaması"
-    message["From"] = formataddr(("Media Space", smtp_user))
+    message["Subject"] = "NewsTrack e-posta doğrulaması"
+    message["From"] = formataddr(("NewsTrack", smtp_user))
     message["To"] = to_email
     message.set_content(
         "Merhaba,\n\n"
-        "Media Space hesabını doğrulamak için bu bağlantıyı aç:\n"
+        "NewsTrack hesabını doğrulamak için bu bağlantıyı aç:\n"
         f"{verification_url}\n\n"
         "Bağlantı 24 saat geçerlidir. "
         "Bu kaydı sen yapmadıysan bu e-postayı yok sayabilirsin."
@@ -63,12 +63,12 @@ def send_password_reset_email(to_email: str, token: str) -> None:
     reset_url = f"{frontend_url}/#reset-password?{query}"
 
     message = EmailMessage()
-    message["Subject"] = "Media Space şifre sıfırlama"
-    message["From"] = formataddr(("Media Space", smtp_user))
+    message["Subject"] = "NewsTrack şifre sıfırlama"
+    message["From"] = formataddr(("NewsTrack", smtp_user))
     message["To"] = to_email
     message.set_content(
         "Merhaba,\n\n"
-        "Media Space hesabının şifresini yenilemek için bu bağlantıyı aç:\n"
+        "NewsTrack hesabının şifresini yenilemek için bu bağlantıyı aç:\n"
         f"{reset_url}\n\n"
         "Bağlantı 30 dakika geçerlidir. "
         "Bu isteği sen yapmadıysan bu e-postayı yok sayabilirsin."
