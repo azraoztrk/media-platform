@@ -19,7 +19,7 @@ from app.email_service import (
     send_password_reset_email,
 )
 from fastapi.responses import HTMLResponse
-from app.models import Article as ArticleModel, User as UserModel      #UserModel, veritabanındaki kullanıcı tablosuna erişmemizi sağlar.
+from app.models import Article as ArticleModel, User as UserModel, Collection as CollectionModel, CollectionArticle as CollectionArticleModel     #UserModel, veritabanındaki kullanıcı tablosuna erişmemizi sağlar.
 from fastapi import FastAPI, Depends, HTTPException, Query                    #HTTPException, örneğin aynı e-posta adresiyle tekrar kayıt yapılmasını uygun bir HTTP hata koduyla bildirmemizi sağlar.
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field                                  #Field, parola için minimum uzunluk belirlememizi sağlar.
@@ -293,13 +293,18 @@ class UserLogin(BaseModel):
 class ForgotPasswordRequest(BaseModel):
     email: str
 
-
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str = Field(min_length=8)
 
 class AccountDeleteRequest(BaseModel):
     password: str = Field(min_length=8)
+
+class CollectionCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+class CollectionArticleAdd(BaseModel):
+    article_id: int
 
 class UserRoleUpdate(BaseModel):
     role: Literal["USER", "EDITOR", "ADMIN"]
@@ -749,6 +754,210 @@ def delete_my_account(
     db.commit()
 
     return {"message": "Hesabın silindi."}
+
+@app.get("/api/collections")
+def list_collections(
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    collections = (
+        db.query(CollectionModel)
+        .filter(CollectionModel.user_id == current_user.id)
+        .order_by(CollectionModel.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for collection in collections:
+        article_ids = [
+            item.article_id
+            for item in db.query(CollectionArticleModel)
+            .filter(CollectionArticleModel.collection_id == collection.id)
+            .all()
+        ]
+        result.append({
+            "id": collection.id,
+            "name": collection.name,
+            "article_ids": article_ids,
+        })
+
+    return result
+
+@app.get("/api/collections/{collection_id}")
+def get_collection(
+    collection_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    collection = db.query(CollectionModel).filter(
+        CollectionModel.id == collection_id,
+        CollectionModel.user_id == current_user.id,
+    ).first()
+
+    if collection is None:
+        raise HTTPException(status_code=404, detail="Koleksiyon bulunamadı.")
+
+    articles = (
+        db.query(ArticleModel)
+        .join(
+            CollectionArticleModel,
+            CollectionArticleModel.article_id == ArticleModel.id,
+        )
+        .filter(CollectionArticleModel.collection_id == collection.id)
+        .order_by(CollectionArticleModel.added_at.desc())
+        .all()
+    )
+
+    return {
+        "id": collection.id,
+        "name": collection.name,
+        "articles": [
+            {
+                "id": article.id,
+                "title": article.title,
+                "content": article.content,
+                "created_at": article.created_at,
+                "is_active": article.is_active,
+                "category": article.category,
+                "image_url": article.image_url,
+                "source_url": article.source_url,
+            }
+            for article in articles
+        ],
+    }
+
+@app.post("/api/collections", status_code=201)
+def create_collection(
+    request: CollectionCreate,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    name = request.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Koleksiyon adı boş olamaz.")
+
+    existing = db.query(CollectionModel).filter(
+        CollectionModel.user_id == current_user.id,
+        CollectionModel.name.ilike(name),
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Bu isimde bir koleksiyonun zaten var.")
+
+    collection = CollectionModel(user_id=current_user.id, name=name)
+    db.add(collection)
+    db.commit()
+    db.refresh(collection)
+
+    return {"id": collection.id, "name": collection.name, "article_ids": []}
+
+
+@app.patch("/api/collections/{collection_id}")
+def rename_collection(
+    collection_id: int,
+    request: CollectionCreate,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    collection = db.query(CollectionModel).filter(
+        CollectionModel.id == collection_id,
+        CollectionModel.user_id == current_user.id,
+    ).first()
+    if collection is None:
+        raise HTTPException(status_code=404, detail="Koleksiyon bulunamadı.")
+
+    name = request.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Koleksiyon adı boş olamaz.")
+
+    duplicate = db.query(CollectionModel).filter(
+        CollectionModel.user_id == current_user.id,
+        CollectionModel.name.ilike(name),
+        CollectionModel.id != collection_id,
+    ).first()
+    if duplicate:
+        raise HTTPException(status_code=409, detail="Bu isimde başka bir koleksiyonun var.")
+
+    collection.name = name
+    db.commit()
+    return {"id": collection.id, "name": collection.name}
+
+
+@app.delete("/api/collections/{collection_id}")
+def delete_collection(
+    collection_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    collection = db.query(CollectionModel).filter(
+        CollectionModel.id == collection_id,
+        CollectionModel.user_id == current_user.id,
+    ).first()
+    if collection is None:
+        raise HTTPException(status_code=404, detail="Koleksiyon bulunamadı.")
+
+    db.delete(collection)
+    db.commit()
+    return {"message": "Koleksiyon silindi."}
+
+
+@app.post("/api/collections/{collection_id}/articles")
+def add_article_to_collection(
+    collection_id: int,
+    request: CollectionArticleAdd,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    collection = db.query(CollectionModel).filter(
+        CollectionModel.id == collection_id,
+        CollectionModel.user_id == current_user.id,
+    ).first()
+    if collection is None:
+        raise HTTPException(status_code=404, detail="Koleksiyon bulunamadı.")
+
+    article = db.query(ArticleModel).filter(
+        ArticleModel.id == request.article_id
+    ).first()
+    if article is None:
+        raise HTTPException(status_code=404, detail="Haber bulunamadı.")
+
+    existing = db.query(CollectionArticleModel).filter(
+        CollectionArticleModel.collection_id == collection_id,
+        CollectionArticleModel.article_id == request.article_id,
+    ).first()
+    if not existing:
+        db.add(CollectionArticleModel(
+            collection_id=collection_id,
+            article_id=request.article_id,
+        ))
+        db.commit()
+
+    return {"message": "Haber koleksiyona eklendi."}
+
+
+@app.delete("/api/collections/{collection_id}/articles/{article_id}")
+def remove_article_from_collection(
+    collection_id: int,
+    article_id: int,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    collection = db.query(CollectionModel).filter(
+        CollectionModel.id == collection_id,
+        CollectionModel.user_id == current_user.id,
+    ).first()
+    if collection is None:
+        raise HTTPException(status_code=404, detail="Koleksiyon bulunamadı.")
+
+    item = db.query(CollectionArticleModel).filter(
+        CollectionArticleModel.collection_id == collection_id,
+        CollectionArticleModel.article_id == article_id,
+    ).first()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Bu haber koleksiyonda bulunamadı.")
+
+    db.delete(item)
+    db.commit()
+    return {"message": "Haber koleksiyondan çıkarıldı."}
 
 @app.get("/api/admin/test")
 def admin_test(

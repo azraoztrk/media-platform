@@ -10,6 +10,12 @@ type ApiArticle = {
   source_url: string | null
 }
 
+type UserCollection = {
+  id: number
+  name: string
+  article_ids: number[]
+}
+
 type UserRole = 'USER' | 'EDITOR' | 'ADMIN'
 
 type AdminUser = {
@@ -613,6 +619,107 @@ function FavoriteButton({ articleId }: FavoriteButtonProps) {
   )
 }
 
+function CollectionPicker({ articleId }: { articleId: string }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [collections, setCollections] = useState<UserCollection[]>([])
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  async function openPicker() {
+    const token = localStorage.getItem('mediaSpaceToken')
+    if (!token) {
+      window.alert('Haberi koleksiyona eklemek için önce giriş yapmalısın.')
+      window.location.hash = '#login'
+      return
+    }
+
+    setIsOpen((open) => !open)
+    setMessage('')
+    setError('')
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/collections', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!response.ok) throw new Error('Koleksiyonlar yüklenemedi.')
+      setCollections(await response.json())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  async function addToCollection(collection: UserCollection) {
+    const token = localStorage.getItem('mediaSpaceToken')
+    if (!token) return
+
+    setError('')
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/collections/${collection.id}/articles`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ article_id: Number(articleId) }),
+        }
+      )
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.detail || 'Haber eklenemedi.')
+      }
+
+      setMessage(`“${collection.name}” koleksiyonuna eklendi.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    }
+  }
+
+  return (
+    <div className='collection-picker'>
+      <button
+        className='collection-picker-trigger'
+        type='button'
+        onClick={() => void openPicker()}
+      >
+        Koleksiyona ekle
+      </button>
+
+      {isOpen && (
+        <div className='collection-picker-menu'>
+          {isLoading ? (
+            <p>Yükleniyor...</p>
+          ) : collections.length === 0 ? (
+            <>
+              <p>Henüz koleksiyonun yok.</p>
+              <a href='#collections'>Koleksiyon oluştur</a>
+            </>
+          ) : (
+            collections.map((collection) => (
+              <button
+                key={collection.id}
+                type='button'
+                onClick={() => void addToCollection(collection)}
+              >
+                {collection.name}
+              </button>
+            ))
+          )}
+
+          {message && <p role='status'>{message}</p>}
+          {error && <p role='alert'>{error}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FavoritesPage() {
   const favoritesStorageKey = getFavoritesStorageKey()
   const [favoriteIds, setFavoriteIds] = useState<string[]>(
@@ -772,6 +879,7 @@ function FavoritesPage() {
                     </span>
 
                     <FavoriteButton articleId={String(article.id)} />
+                    <CollectionPicker articleId={String(article.id)} />
                   </div>
 
                   <h3>
@@ -803,6 +911,346 @@ function FavoritesPage() {
         <span>© 2026 NEWSTRACK</span>
         <a href='#'>Ana sayfaya dön ↑</a>
       </footer>
+    </div>
+  )
+}
+
+function CollectionsPage() {
+  const [collections, setCollections] = useState<UserCollection[]>([])
+  const [name, setName] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function loadCollections() {
+      const token = localStorage.getItem('mediaSpaceToken')
+
+      try {
+        const response = await fetch(
+          'http://127.0.0.1:8000/api/collections',
+          {
+            headers: token
+              ? { Authorization: `Bearer ${token}` }
+              : {},
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error('Koleksiyonlar yüklenemedi.')
+        }
+
+        setCollections(await response.json())
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadCollections()
+  }, [])
+
+  async function createCollection(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+
+    const token = localStorage.getItem('mediaSpaceToken')
+    const trimmedName = name.trim()
+    if (!trimmedName) return
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/collections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ name: trimmedName }),
+      })
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.detail || 'Koleksiyon oluşturulamadı.')
+      }
+
+      setCollections((current) => [result, ...current])
+      setName('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    }
+  }
+
+  async function renameCollection(collection: UserCollection) {
+    const newName = window.prompt('Yeni koleksiyon adı:', collection.name)
+    if (!newName?.trim()) return
+
+    const token = localStorage.getItem('mediaSpaceToken')
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/collections/${collection.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ name: newName.trim() }),
+        }
+      )
+
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.detail || 'Koleksiyon adı değiştirilemedi.')
+      }
+
+      setCollections((current) =>
+        current.map((item) =>
+          item.id === collection.id ? { ...item, name: result.name } : item
+        )
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    }
+  }
+
+  async function deleteCollection(collection: UserCollection) {
+    if (!window.confirm(`“${collection.name}” koleksiyonu silinsin mi?`)) {
+      return
+    }
+
+    const token = localStorage.getItem('mediaSpaceToken')
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/collections/${collection.id}`,
+        {
+          method: 'DELETE',
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        }
+      )
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.detail || 'Koleksiyon silinemedi.')
+      }
+
+      setCollections((current) =>
+        current.filter((item) => item.id !== collection.id)
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    }
+  }
+
+  return (
+    <div className='favorites-page'>
+      <header className='article-header'>
+        <a className='brand' href='#'>NewsTrack</a>
+        <a className='article-back-link' href='#'>← Ana sayfaya dön</a>
+      </header>
+
+      <main className='favorites-main'>
+        <div className='favorites-heading'>
+          <span className='section-eyebrow'>HESABINA ÖZEL</span>
+          <h1>Koleksiyonlarım</h1>
+          <p>Haberlerini kendi oluşturduğun koleksiyonlarda düzenle.</p>
+        </div>
+
+        <form className='collection-create-form' onSubmit={createCollection}>
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={80}
+            placeholder='Örnek: Yemek tarifleri'
+            aria-label='Yeni koleksiyon adı'
+            required
+          />
+          <button type='submit'>Koleksiyon oluştur</button>
+        </form>
+
+        {error && <p className='articles-message' role='alert'>{error}</p>}
+        {isLoading && <p className='articles-message'>Yükleniyor...</p>}
+
+        {!isLoading && collections.length === 0 && (
+          <div className='favorites-empty'>
+            <h2>Henüz koleksiyonun yok.</h2>
+            <p>Yukarıdan bir koleksiyon oluşturabilirsin.</p>
+          </div>
+        )}
+
+        <div className='collection-list'>
+          {collections.map((collection) => (
+            <article className='collection-item' key={collection.id}>
+              <div>
+                <h2><a href={`#collection/${collection.id}`}>{collection.name}</a></h2>
+                <p>{collection.article_ids.length} haber</p>
+              </div>
+              <div className='collection-item-actions'>
+                <button type='button' onClick={() => void renameCollection(collection)}>
+                  Adını değiştir
+                </button>
+                <button type='button' onClick={() => void deleteCollection(collection)}>
+                  Sil
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </main>
+    </div>
+  )
+}
+
+function CollectionDetailPage({
+  collectionId,
+}: {
+  collectionId: number
+}) {
+  const [collection, setCollection] = useState<{
+    id: number
+    name: string
+    articles: ApiArticle[]
+  } | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    async function loadCollection() {
+      const token = localStorage.getItem('mediaSpaceToken')
+
+      try {
+        const response = await fetch(
+          `http://127.0.0.1:8000/api/collections/${collectionId}`,
+          {
+            headers: token
+              ? { Authorization: `Bearer ${token}` }
+              : {},
+          }
+        )
+
+        const result = await response.json()
+        if (!response.ok) {
+          throw new Error(result.detail || 'Koleksiyon açılamadı.')
+        }
+
+        setCollection(result)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadCollection()
+  }, [collectionId])
+
+  async function removeArticle(articleId: number) {
+    const token = localStorage.getItem('mediaSpaceToken')
+
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/collections/${collectionId}/articles/${articleId}`,
+        {
+          method: 'DELETE',
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        }
+      )
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.detail || 'Haber çıkarılamadı.')
+      }
+
+      setCollection((current) =>
+        current
+          ? {
+              ...current,
+              articles: current.articles.filter(
+                (article) => article.id !== articleId
+              ),
+            }
+          : current
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    }
+  }
+
+  return (
+    <div className='favorites-page'>
+      <header className='article-header'>
+        <a className='brand' href='#'>NewsTrack</a>
+        <a className='article-back-link' href='#collections'>
+          ← Koleksiyonlarıma dön
+        </a>
+      </header>
+
+      <main className='favorites-main'>
+        <div className='favorites-heading'>
+          <span className='section-eyebrow'>KOLEKSİYON</span>
+          <h1>{collection?.name || 'Koleksiyon'}</h1>
+          <p>Koleksiyonuna kaydettiğin haberler.</p>
+        </div>
+
+        {isLoading && <p className='articles-message'>Haberler yükleniyor...</p>}
+        {error && <p className='articles-message' role='alert'>{error}</p>}
+
+        {!isLoading && collection?.articles.length === 0 && (
+          <div className='favorites-empty'>
+            <h2>Bu koleksiyonda henüz haber yok.</h2>
+            <p>Ana sayfadaki bir haberi koleksiyonuna ekleyebilirsin.</p>
+            <a className='favorites-home-link' href='#latest'>
+              Haberlere git ↗
+            </a>
+          </div>
+        )}
+
+        <div className='article-grid'>
+          {collection?.articles.map((article, index) => (
+            <article className='article-card' key={article.id}>
+              <a
+                className='article-image-link'
+                href={`#article/${article.id}`}
+              >
+                <img
+                  src={
+                    article.image_url ||
+                    'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=900&q=85'
+                  }
+                  alt={article.title}
+                  loading='lazy'
+                  className='article-image'
+                />
+                <span className='article-index'>
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+              </a>
+
+              <div className='article-body'>
+                <div className='article-meta'>
+                  <span className='article-category'>{article.category}</span>
+                  <button
+                    className='collection-remove-button'
+                    type='button'
+                    onClick={() => void removeArticle(article.id)}
+                  >
+                    Koleksiyondan çıkar
+                  </button>
+                </div>
+
+                <h3>
+                  <a href={`#article/${article.id}`}>{article.title}</a>
+                </h3>
+              </div>
+            </article>
+          ))}
+        </div>
+      </main>
     </div>
   )
 }
@@ -959,6 +1407,7 @@ function ArticleDetail({
             <span className='section-eyebrow'>MAKALE</span>
 
             <FavoriteButton articleId={String(article.id)} />
+            <CollectionPicker articleId={String(article.id)} />
           </div>
 
           <p className='article-lead'>
@@ -1939,6 +2388,37 @@ function App() {
     return <FavoritesPage />
   }
 
+  if (currentPage === '#collections') {
+    if (!isLoggedIn) {
+      return (
+        <AuthPage
+          mode='login'
+          onLogin={() => setIsLoggedIn(true)}
+        />
+      )
+    }
+
+    return <CollectionsPage />
+  }
+
+  if (currentPage.startsWith('#collection/')) {
+    if (!isLoggedIn) {
+      return (
+        <AuthPage
+          mode='login'
+          onLogin={() => setIsLoggedIn(true)}
+        />
+      )
+    }
+
+    const collectionId = Number(currentPage.split('/')[1])
+    if (!Number.isInteger(collectionId)) {
+      return <main className='favorites-main'>Koleksiyon bulunamadı.</main>
+    }
+
+    return <CollectionDetailPage collectionId={collectionId} />
+  }
+
   if (currentPage.startsWith('#article/')) {
     return (
       <ArticleDetail
@@ -2001,6 +2481,12 @@ function App() {
             </a>
           )}
             
+          {isLoggedIn && (
+            <a className='favorites-nav-link' href='#collections'>
+              Koleksiyonlarım
+            </a>
+          )}
+
           <a className='favorites-nav-link' href='#favorites'>
             Favorilerim
           </a>
@@ -2210,6 +2696,7 @@ function App() {
                     {article.category.toLocaleUpperCase('tr-TR')}
                   </span>
                   <FavoriteButton articleId={String(article.id)} />
+                  <CollectionPicker articleId={String(article.id)} />
                 </div>
                 <h3>
                   <a href={`#article/${article.id}`}>
