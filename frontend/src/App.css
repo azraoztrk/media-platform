@@ -19,8 +19,7 @@
   --line: #e5e5e5;
   --page-width: 1500px;
   --page-padding: 5%;
-  --brand-font: "Bodoni 72 Oldstyle", "Bodoni 72", "Bodoni MT",
-    "Bodoni Moda", Georgia, serif;
+  --brand-font: "Playfair Display", Georgia, serif;
 }
 
 * {

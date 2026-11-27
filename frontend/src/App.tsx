@@ -1958,7 +1958,7 @@ function App() {
     <div className='app-shell'>
       <header className='site-header'>
         <a className='brand' href='#' aria-label='NewsTrack ana sayfa'>
-          NewsTrack<span>.</span>
+          NewsTrack<span></span>
         </a>
 
         <nav className='desktop-nav' aria-label='Kategoriler'>
@@ -2088,14 +2088,12 @@ function App() {
           </div>
 
           <div className='hero-content'>
-            <span className='hero-category'>DOSYA · TEKNOLOJİ & BİLİM</span>
+            <span className='hero-category'>GÜNDEM · TEKNOLOJİ · BİLİM · İŞ DÜNYASI · KÜLTÜR & SANAT · SPOR</span>
 
             <h1>
-              Geleceği anlamak
+              Güncel gelişmeler,
               <br />
-              için dünyaya
-              <br />
-              yeniden bak.
+              güvenilir içerikler
             </h1>
 
             <p>
