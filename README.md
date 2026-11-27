@@ -1,30 +1,36 @@
 # NewsTrack
 
-NewsTrack, RSS kaynaklarından haberleri alıp kategorilere ayıran; kullanıcıların haberleri arayıp okuyabildiği bir haber platformu projesidir.
+NewsTrack, Habertürk RSS akışından haberleri alıp kategorilere ayıran bir haber takip platformudur. Kullanıcılar haberleri arayabilir, favorilerine ekleyebilir ve kendi isimlendirdikleri koleksiyonlarda düzenleyebilir.
 
 ## Özellikler
 
 - Habertürk RSS akışından haber içe aktarma
-- Haberleri kategoriye göre filtreleme ve arama
-- Sayfalama ve arama önerileri
-- Haber detayları ve kaynak bağlantısı
-- JWT tabanlı kullanıcı kaydı ve girişi
-- USER, EDITOR ve ADMIN rolleri
-- Favorilere haber ekleme
+- Haberleri kategoriye göre filtreleme, arama ve sayfalama
+- Arama önerileri ve haber detay sayfaları
+- Kaynak haber bağlantılarına yönlendirme
+- E-posta adresi doğrulamalı kullanıcı kaydı ve giriş
+- E-posta yoluyla şifre sıfırlama
+- Hesaba özel favori haberler
+- İsimli haber koleksiyonları oluşturma, yeniden adlandırma ve silme
+- Haberleri koleksiyonlara ekleme ve koleksiyonlardan çıkarma
+- USER, EDITOR ve ADMIN kullanıcı rolleri
 - Editör ve admin için haber yönetim paneli
-- Admin için kullanıcı rolü değiştirme ve güvenli kullanıcı silme
-- Başlıkları sınıflandırmak için yapay zekâ destekli kategori tahmini
+- Admin için kullanıcı rolleri yönetimi ve güvenli kullanıcı silme
+- Hugging Face modeliyle AI destekli haber kategorisi tahmini
 
-RSS kaynaklı haberlerin içeriği yönetim panelinden düzenlenemez. Editörler manuel eklenen haberleri yönetebilir. Manuel haberlerde görsel URL’si isteğe bağlıdır.
+RSS kaynaklı haberlerin içeriği yönetim panelinden düzenlenemez. Editörler kendi oluşturdukları haberleri yönetebilir. Manuel haberlerde görsel URL’si isteğe bağlıdır. Kaynak haber bağlantısı korunur.
+
+Favoriler tarayıcıda hesaba özel saklanır. Koleksiyonlar kullanıcı hesabına bağlı olarak veritabanında saklanır.
 
 ## Teknolojiler
 
-**Frontend:** React, TypeScript, Vite  
-**Backend:** Python, FastAPI, SQLAlchemy  
-**Veritabanı:** PostgreSQL  
-**Kimlik doğrulama:** JWT  
-**AI sınıflandırma:** Hugging Face Transformers, PyTorch  
-**RSS ve içerik işleme:** feedparser, Requests, Beautiful Soup
+- **Frontend:** React, TypeScript, Vite
+- **Backend:** Python, FastAPI, SQLAlchemy
+- **Veritabanı:** PostgreSQL
+- **Kimlik doğrulama:** JWT
+- **E-posta:** Gmail SMTP
+- **AI sınıflandırma:** Hugging Face Transformers, PyTorch
+- **RSS ve içerik işleme:** feedparser, Requests, Beautiful Soup
 
 ## Gereksinimler
 
@@ -51,76 +57,85 @@ python -m pip install -r requirements.txt
 
 ### 3. Veritabanını ve ortam değişkenlerini ayarla
 
-PostgreSQL’de boş bir veritabanı oluştur. Proje kökünde `.env` adlı dosya oluşturup kendi bağlantı bilgilerini gir:
+PostgreSQL’de `media_platform` adlı bir veritabanı oluştur. Veritabanına bağlanacak kullanıcının tabloları oluşturma ve kullanma yetkisi olmalıdır.
+
+Proje kökünde `.env` adlı dosya oluşturup kendi bağlantı ve e-posta bilgilerini gir:
 
 ```env
 DATABASE_URL=postgresql+psycopg://KULLANICI:SIFRE@localhost:5432/media_platform
 JWT_SECRET_KEY=uzun_ve_tahmin_edilmesi_zor_bir_gizli_anahtar
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_APP_PASSWORD=your-gmail-app-password
+
+FRONTEND_URL=http://localhost:5173
+BACKEND_BASE_URL=http://127.0.0.1:8000
 ```
 
-`.env` dosyasını GitHub’a gönderme; bu dosya gizli bilgiler içerir.
+Gmail üzerinden e-posta göndermek için Google hesabında iki adımlı doğrulamayı etkinleştirip uygulama şifresi oluştur. `.env` dosyasını veya uygulama şifresini GitHub’a gönderme.
 
-Veritabanı tablolarını oluşturmak için proje kökünde çalıştır:
+### 4. Veritabanı tablolarını oluştur
+
+Proje kök dizininde çalıştır:
 
 ```bash
 python -c "from app.database import Base, engine; import app.models; Base.metadata.create_all(bind=engine)"
 ```
 
-### 4. Backend’i başlat
+Bu komut eksik tabloları oluşturur. Mevcut tablolara yeni alan eklemez; var olan bir veritabanında şema değişiklikleri ayrıca uygulanmalıdır.
 
-Proje kökünde çalıştır:
+### 5. Backend’i başlat
+
+Proje kök dizininde çalıştır:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-Backend şu adreste çalışır:
+- Backend: <http://127.0.0.1:8000>
+- API belgeleri: <http://127.0.0.1:8000/docs>
 
-```text
-http://127.0.0.1:8000
-```
+### 6. Frontend’i başlat
 
-API belgeleri:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-### 5. Frontend’i başlat
-
-Yeni bir terminal açıp frontend klasörüne geç:
+Yeni bir terminal açıp proje klasöründen frontend’e geç:
 
 ```bash
-cd media-platform/frontend
+cd frontend
 npm install
 npm run dev
 ```
 
 Vite’ın terminalde gösterdiği yerel adresi tarayıcıda aç.
 
-## AI modeli hakkında
+## AI modeli
 
-Kategori tahmini, `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli` modeliyle yapılır. Model ilk kullanımda Hugging Face üzerinden indirilir; model dosyası yaklaşık 558 MB boyutundadır ve ilk indirme için internet bağlantısı gerekir. Apple Silicon cihazlarda MPS kullanılabilir; aksi durumda CPU kullanılır.
+Kategori tahmini için `MoritzLaurer/mDeBERTa-v3-base-mnli-xnli` modeli kullanılır. Model ilk kullanımda Hugging Face üzerinden indirilir. Model dosyası yaklaşık 558 MB boyutundadır ve indirme sırasında internet bağlantısı gerekir. Apple Silicon cihazlarda MPS kullanılabilir; aksi durumda CPU kullanılır.
 
 ## Kullanıcı rolleri
 
-Yeni kayıt olan hesaplar varsayılan olarak USER rolüyle oluşturulur. EDITOR ve ADMIN yetkileri mevcut bir admin tarafından verilir. İlk admin hesabı veritabanında yetkili şekilde tanımlanmalıdır.
+- **USER:** Haberleri görüntüleyebilir, favori ve koleksiyon özelliklerini kullanabilir.
+- **EDITOR:** Kendi oluşturduğu haberleri yönetebilir.
+- **ADMIN:** Haber yönetimi, kullanıcı rolleri ve kullanıcı hesapları üzerinde yönetim işlemleri yapabilir.
+
+Yeni kayıt olan hesaplar varsayılan olarak USER rolüyle oluşturulur. EDITOR ve ADMIN yetkileri admin tarafından verilir. Sistemdeki son admin hesabının silinmesine izin verilmez.
 
 ## Kontroller
 
-Backend sözdizimi kontrolü:
+Backend dosyalarının sözdizimini kontrol et:
 
 ```bash
-python -m py_compile app/main.py app/rss_service.py
+python -m py_compile app/main.py app/rss_service.py app/models.py app/email_service.py
 ```
 
-Python bağımlılık kontrolü:
+Python paket uyumluluğunu kontrol et:
 
 ```bash
 python -m pip check
 ```
 
-Frontend üretim derlemesi:
+Frontend üretim derlemesini kontrol et:
 
 ```bash
 cd frontend
