@@ -29,3 +29,9 @@ class User(Base):
         server_default="USER"                              #Veritabanında rol belirtilmeden kayıt oluşturulursa PostgreSQL varsayılan olarak USER değerini kullanır.
     )
     created_at = Column(DateTime, server_default=func.now())                    #Kullanıcının oluşturulma zamanını kaydeder.
+
+    email_verified = Column(Boolean, nullable=False, default=True, server_default="true")
+    email_verification_token_hash = Column(String(64), nullable=True)
+    email_verification_expires_at = Column(DateTime(timezone=True), nullable=True)
+    password_reset_token_hash = Column(String(64), nullable=True)
+    password_reset_expires_at = Column(DateTime(timezone=True), nullable=True)

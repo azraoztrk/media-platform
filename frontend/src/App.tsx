@@ -138,7 +138,7 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
         window.location.hash = ''
       } else {
         setSuccess(
-          'Hesabın başarıyla oluşturuldu! Şimdi giriş yapabilirsin.'
+          'Kayıt tamamlandı. Doğrulama bağlantısı e-posta adresine gönderildi. Gelen kutunu ve spam klasörünü kontrol et.'
         )
       }
     } catch (err) {
@@ -297,6 +297,189 @@ function AuthPage({ mode, onLogin }: AuthPageProps) {
         <span>© 2026 MEDIA SPACE</span>
         <span>Dünyaya farklı bir açıdan bak.</span>
       </footer>
+    </div>
+  )
+}
+
+function ForgotPasswordPage() {
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setMessage('')
+    setError('')
+    setIsLoading(true)
+
+    try {
+      const response = await fetch(
+        'http://127.0.0.1:8000/api/auth/forgot-password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email.trim().toLowerCase() }),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'İstek gönderilemedi.')
+      }
+
+      setMessage(data.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className='auth-page'>
+      <header className='auth-header'>
+        <a className='brand' href='#'>media space<span>.</span></a>
+        <a className='auth-back-link' href='#login'>← Giriş yap</a>
+      </header>
+
+      <main className='auth-main'>
+        <div className='auth-intro'>
+          <span className='section-eyebrow'>HESAP GÜVENLİĞİ</span>
+          <h1>Şifreni yenile.</h1>
+          <p>Sıfırlama bağlantısını göndermemiz için hesap e-postanı gir.</p>
+        </div>
+
+        <form className='auth-form' onSubmit={handleSubmit}>
+          <label>
+            E-posta adresi
+            <input
+              type='email'
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete='email'
+              required
+            />
+          </label>
+
+          {message && <p role='status'>{message}</p>}
+          {error && <p role='alert'>{error}</p>}
+
+          <button className='auth-submit' type='submit' disabled={isLoading}>
+            {isLoading ? 'Gönderiliyor...' : 'Sıfırlama bağlantısı gönder'}
+          </button>
+        </form>
+      </main>
+    </div>
+  )
+}
+
+function ResetPasswordPage({ token }: { token: string }) {
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setMessage('')
+    setError('')
+
+    if (!token) {
+      setError('Sıfırlama bağlantısı eksik veya geçersiz.')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      setError('Girdiğin şifreler eşleşmiyor.')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const response = await fetch(
+        'http://127.0.0.1:8000/api/auth/reset-password',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token,
+            new_password: password,
+          }),
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.detail || 'Şifre güncellenemedi.')
+      }
+
+      setMessage('Şifren güncellendi. Artık giriş yapabilirsin.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className='auth-page'>
+      <header className='auth-header'>
+        <a className='brand' href='#'>media space<span>.</span></a>
+        <a className='auth-back-link' href='#login'>← Giriş yap</a>
+      </header>
+
+      <main className='auth-main'>
+        <div className='auth-intro'>
+          <span className='section-eyebrow'>HESAP GÜVENLİĞİ</span>
+          <h1>Yeni şifreni belirle.</h1>
+        </div>
+
+        <form className='auth-form' onSubmit={handleSubmit}>
+          <label>
+            Yeni şifre
+            <input
+              type='password'
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete='new-password'
+              minLength={8}
+              required
+            />
+          </label>
+
+          <label>
+            Yeni şifre tekrarı
+            <input
+              type='password'
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              autoComplete='new-password'
+              minLength={8}
+              required
+            />
+          </label>
+
+          {message && <p role='status'>{message}</p>}
+          {error && <p role='alert'>{error}</p>}
+
+          {message ? (
+            <a className='text-link' href='#login'>Giriş yap ↗</a>
+          ) : (
+            <button
+              className='auth-submit'
+              type='submit'
+              disabled={isLoading || !token}
+            >
+              {isLoading ? 'Kaydediliyor...' : 'Yeni şifreyi kaydet'}
+            </button>
+          )}
+        </form>
+      </main>
     </div>
   )
 }
@@ -806,6 +989,167 @@ function ArticleDetail({
   )
 }
 
+function AccountPage({ onDeleted }: { onDeleted: () => void }) {
+  const [profile, setProfile] = useState<{
+    email: string
+    role: UserRole
+  } | null>(null)
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let isCancelled = false
+
+    async function loadProfile() {
+      const token = localStorage.getItem('mediaSpaceToken')
+
+      try {
+        const response = await fetch('http://127.0.0.1:8000/api/auth/me', {
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        })
+
+        if (!response.ok) {
+          throw new Error('Hesap bilgileri alınamadı.')
+        }
+
+        const data: { email: string; role: UserRole } =
+          await response.json()
+
+        if (!isCancelled) {
+          setProfile(data)
+        }
+      } catch (err) {
+        if (!isCancelled) {
+          setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadProfile()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
+
+  async function handleDeleteAccount() {
+    if (!password) {
+      setError('Hesabını silmek için mevcut şifreni gir.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Hesabın kalıcı olarak silinecek. Devam etmek istiyor musun?'
+    )
+
+    if (!confirmed) return
+
+    const token = localStorage.getItem('mediaSpaceToken')
+    setIsDeleting(true)
+    setError('')
+
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/auth/me', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ password }),
+      })
+
+      if (!response.ok) {
+        const result = await response.json()
+        throw new Error(result.detail || 'Hesap silinemedi.')
+      }
+
+      localStorage.removeItem(getFavoritesStorageKey())
+      window.dispatchEvent(new Event('favoritesUpdated'))
+      onDeleted()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Bir hata oluştu.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const roleLabel =
+    profile?.role === 'ADMIN'
+      ? 'Admin'
+      : profile?.role === 'EDITOR'
+        ? 'Editör'
+        : 'Kullanıcı'
+
+  return (
+    <div className='app-shell'>
+      <header className='site-header'>
+        <a className='brand' href='#'>
+          media space<span>.</span>
+        </a>
+        <a className='login-button' href='#'>
+          Ana sayfa
+        </a>
+      </header>
+
+      <main className='section-container dashboard-main'>
+        <span className='section-eyebrow'>HESAP AYARLARI</span>
+        <h1>Hesabım</h1>
+
+        {isLoading ? (
+          <p>Hesap bilgileri yükleniyor...</p>
+        ) : profile ? (
+          <div className='auth-form dashboard-form'>
+            <p>
+              <strong>E-posta:</strong> {profile.email}
+            </p>
+            <p>
+              <strong>Rol:</strong> {roleLabel}
+            </p>
+
+            <hr />
+
+            <h2>Hesabını sil</h2>
+            <p>
+              Bu işlem geri alınamaz. Devam etmek için mevcut şifreni gir.
+            </p>
+
+            <label>
+              Mevcut şifren
+              <input
+                type='password'
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete='current-password'
+              />
+            </label>
+
+            {error && <p role='alert'>{error}</p>}
+
+            <button
+              className='dashboard-secondary-button'
+              type='button'
+              onClick={handleDeleteAccount}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Hesap siliniyor...' : 'Hesabımı kalıcı olarak sil'}
+            </button>
+          </div>
+        ) : (
+          error && <p role='alert'>{error}</p>
+        )}
+      </main>
+    </div>
+  )
+}
+
 function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [selectedRoles, setSelectedRoles] = useState<Record<number, UserRole>>({})
@@ -982,18 +1326,20 @@ function AdminUsersPage() {
                     <option value='ADMIN'>Admin</option>
                   </select>
 
-                  <button
+                    <button
                     type='button'
                     onClick={() => saveRole(user)}
                     disabled={savingUserId === user.id}
                   >
-                    {savingUserId === user.id ? 'Kaydediliyor...' : 'Rolü kaydet'}                   <button
+                    {savingUserId === user.id ? 'Kaydediliyor...' : 'Rolü kaydet'}
+                  </button>
+
+                  <button
                     type='button'
                     onClick={() => deleteUser(user)}
                     disabled={deletingUserId === user.id}
                   >
                     {deletingUserId === user.id ? 'Siliniyor...' : 'Sil'}
-                  </button>
                   </button>
                 </div>
               </article>
@@ -1517,6 +1863,29 @@ function App() {
     )
   }
 
+  if (currentPage === '#forgot-password') {
+    return <ForgotPasswordPage />
+  }
+
+  if (currentPage.startsWith('#reset-password')) {
+    const queryString = currentPage.split('?')[1] ?? ''
+    const token = new URLSearchParams(queryString).get('token') ?? ''
+    return <ResetPasswordPage token={token} />
+  }
+
+  if (currentPage === '#account') {
+    if (!isLoggedIn) {
+      return (
+        <AuthPage
+          mode='login'
+          onLogin={() => setIsLoggedIn(true)}
+        />
+      )
+    }
+
+    return <AccountPage onDeleted={handleLogout} />
+  }
+
   if (currentPage === '#admin/users') {
     if (!isLoggedIn) {
       return (
@@ -1609,6 +1978,12 @@ function App() {
         {(userRole === 'EDITOR' || userRole === 'ADMIN') && (
           <a className='favorites-nav-link' href='#dashboard'>
             Yönetim Paneli
+          </a>
+        )}
+
+        {isLoggedIn && (
+          <a className='favorites-nav-link' href='#account'>
+            Hesabım
           </a>
         )}
 

@@ -1,4 +1,8 @@
 import jwt
+import hashlib
+import os
+import secrets
+from datetime import datetime, timedelta, timezone
 from app.security import (
     hash_password,                                              #hash_password, kayıt sırasında parolayı hash’ler. verify_password: Giriş sırasında parolayı doğrular. create_access_token: Bilgileri doğru olan kullanıcıya JWT üretir.
     verify_password,
@@ -10,7 +14,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.rss_service import import_rss_articles
-
+from app.email_service import (
+    send_verification_email,
+    send_password_reset_email,
+)
+from fastapi.responses import HTMLResponse
 from app.models import Article as ArticleModel, User as UserModel      #UserModel, veritabanındaki kullanıcı tablosuna erişmemizi sağlar.
 from fastapi import FastAPI, Depends, HTTPException, Query                    #HTTPException, örneğin aynı e-posta adresiyle tekrar kayıt yapılmasını uygun bir HTTP hata koduyla bildirmemizi sağlar.
 from fastapi.middleware.cors import CORSMiddleware
@@ -282,6 +290,17 @@ class UserLogin(BaseModel):
     email: str
     password: str
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+class AccountDeleteRequest(BaseModel):
+    password: str = Field(min_length=8)
+
 class UserRoleUpdate(BaseModel):
     role: Literal["USER", "EDITOR", "ADMIN"]
 
@@ -386,35 +405,103 @@ def register_user(
     user: UserCreate,
     db: Session = Depends(get_db)
 ):
+    email = user.email.strip().lower()
+
     existing_user = db.query(UserModel).filter(
-        UserModel.email == user.email
+        UserModel.email == email
     ).first()
 
     if existing_user:
         raise HTTPException(
             status_code=409,
-            detail="Email already registered"
+            detail="Bu e-posta adresiyle daha önce kayıt oluşturulmuş."
         )
 
-    hashed_password = hash_password(user.password)
+    verification_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(
+        verification_token.encode("utf-8")
+    ).hexdigest()
 
     db_user = UserModel(
-        email=user.email,
-        hashed_password=hashed_password
+        email=email,
+        hashed_password=hash_password(user.password),
+        email_verified=False,
+        email_verification_token_hash=token_hash,
+        email_verification_expires_at=(
+            datetime.now(timezone.utc) + timedelta(hours=24)
+        ),
     )
 
     db.add(db_user)
+
+    try:
+        db.flush()
+        send_verification_email(email, verification_token)
+    except Exception as error:
+        db.rollback()
+        print(f"Doğrulama e-postası gönderilemedi: {error}")
+        raise HTTPException(
+            status_code=503,
+            detail="Doğrulama e-postası gönderilemedi. E-posta ayarlarını kontrol et."
+        ) from error
+
     db.commit()
-    db.refresh(db_user)
 
     return {
-        "message": "User registered successfully",
-        "user": {
-            "id": db_user.id,
-            "email": db_user.email,
-            "created_at": db_user.created_at
-        }
+        "message": "Doğrulama bağlantısı e-posta adresine gönderildi.",
+        "email": email,
     }
+
+@app.get("/api/auth/verify-email", response_class=HTMLResponse)
+def verify_email(
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    token_hash = hashlib.sha256(
+        token.encode("utf-8")
+    ).hexdigest()
+
+    db_user = db.query(UserModel).filter(
+        UserModel.email_verification_token_hash == token_hash
+    ).first()
+
+    if db_user is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Doğrulama bağlantısı geçersiz veya daha önce kullanılmış."
+        )
+
+    expires_at = db_user.email_verification_expires_at
+
+    if expires_at is None or expires_at < datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=400,
+            detail="Doğrulama bağlantısının süresi dolmuş."
+        )
+
+    db_user.email_verified = True
+    db_user.email_verification_token_hash = None
+    db_user.email_verification_expires_at = None
+    db.commit()
+
+    frontend_url = os.getenv(
+        "FRONTEND_URL",
+        "http://localhost:5173",
+    ).rstrip("/")
+
+    return HTMLResponse(
+        content=f"""
+        <!doctype html>
+        <html lang="tr">
+          <head><meta charset="utf-8"><title>E-posta doğrulandı</title></head>
+          <body>
+            <h1>E-posta adresin doğrulandı.</h1>
+            <p>Artık Media Space hesabına giriş yapabilirsin.</p>
+            <a href="{frontend_url}/#login">Giriş sayfasına dön</a>
+          </body>
+        </html>
+        """
+    )
 
 @app.post("/api/auth/login")
 def login_user(
@@ -435,6 +522,12 @@ def login_user(
             headers={"WWW-Authenticate": "Bearer"}
         )
 
+    if not db_user.email_verified:
+        raise HTTPException(
+            status_code=403,
+            detail="Giriş yapmadan önce e-posta adresini doğrulamalısın."
+        )
+
     access_token = create_access_token(
         subject=db_user.email
     )
@@ -443,6 +536,166 @@ def login_user(
         "access_token": access_token,
         "token_type": "bearer"                   #token’ın API isteklerinde Authorization: Bearer <token> biçiminde gönderileceğini belirtir.
     }
+
+@app.post("/api/auth/forgot-password")
+def forgot_password(
+    request: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    email = request.email.strip().lower()
+    db_user = db.query(UserModel).filter(
+        UserModel.email == email,
+        UserModel.email_verified.is_(True),
+    ).first()
+
+    # E-posta adresi kayıtlı mı bilgisini açıklamadan aynı yanıtı ver.
+    response = {
+        "message": "Bu e-posta kayıtlı ve doğrulanmışsa sıfırlama bağlantısı gönderildi."
+    }
+
+    if db_user is None:
+        return response
+
+    now = datetime.now(timezone.utc)
+
+    # Tekrar tekrar e-posta gönderilmesini önlemek için 1 dakika bekle.
+    if db_user.password_reset_expires_at is not None:
+        previous_expiry = db_user.password_reset_expires_at
+        if previous_expiry.tzinfo is None:
+            previous_expiry = previous_expiry.replace(tzinfo=timezone.utc)
+
+        if previous_expiry - timedelta(minutes=29) > now:
+            return response
+
+    reset_token = secrets.token_urlsafe(32)
+    db_user.password_reset_token_hash = hashlib.sha256(
+        reset_token.encode("utf-8")
+    ).hexdigest()
+    db_user.password_reset_expires_at = now + timedelta(minutes=30)
+
+    try:
+        send_password_reset_email(email, reset_token)
+        db.commit()
+    except Exception as error:
+        db.rollback()
+        print(f"Şifre sıfırlama e-postası gönderilemedi: {error}")
+        raise HTTPException(
+            status_code=503,
+            detail="E-posta gönderilemedi. Sunucu e-posta ayarlarını kontrol et.",
+        ) from error
+
+    return response
+
+@app.post("/api/auth/reset-password")
+def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    token_hash = hashlib.sha256(
+        request.token.encode("utf-8")
+    ).hexdigest()
+
+    db_user = db.query(UserModel).filter(
+        UserModel.password_reset_token_hash == token_hash
+    ).first()
+
+    if db_user is None or db_user.password_reset_expires_at is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Bağlantı geçersiz veya süresi dolmuş.",
+        )
+
+    expires_at = db_user.password_reset_expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at <= datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=400,
+            detail="Bağlantı geçersiz veya süresi dolmuş.",
+        )
+
+    db_user.hashed_password = hash_password(request.new_password)
+    db_user.password_reset_token_hash = None
+    db_user.password_reset_expires_at = None
+    db.commit()
+
+    return {"message": "Şifren güncellendi. Yeni şifrenle giriş yapabilirsin."}
+
+@app.post("/api/auth/forgot-password")
+def forgot_password(
+    request: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    generic_response = {
+        "message": (
+            "Bu e-posta doğrulanmış bir hesaba aitse "
+            "şifre sıfırlama bağlantısı gönderildi."
+        )
+    }
+
+    email = request.email.strip().lower()
+    db_user = db.query(UserModel).filter(
+        UserModel.email == email
+    ).first()
+
+    if db_user is None or not db_user.email_verified:
+        return generic_response
+
+    now = datetime.now(timezone.utc)
+    old_expiry = db_user.password_reset_expires_at
+
+    # Aynı hesaba art arda e-posta gönderilmesini sınırlar.
+    if old_expiry is not None and old_expiry > now:
+        last_sent_at = old_expiry - timedelta(minutes=30)
+        if now - last_sent_at < timedelta(minutes=1):
+            return generic_response
+
+    reset_token = secrets.token_urlsafe(32)
+    db_user.password_reset_token_hash = hashlib.sha256(
+        reset_token.encode("utf-8")
+    ).hexdigest()
+    db_user.password_reset_expires_at = now + timedelta(minutes=30)
+
+    try:
+        db.flush()
+        send_password_reset_email(email, reset_token)
+        db.commit()
+    except Exception as error:
+        db.rollback()
+        print(f"Şifre sıfırlama e-postası gönderilemedi: {error}")
+
+    return generic_response
+
+@app.post("/api/auth/reset-password")
+def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    token_hash = hashlib.sha256(
+        request.token.encode("utf-8")
+    ).hexdigest()
+
+    db_user = db.query(UserModel).filter(
+        UserModel.password_reset_token_hash == token_hash
+    ).first()
+
+    if (
+        db_user is None
+        or db_user.password_reset_expires_at is None
+        or db_user.password_reset_expires_at < datetime.now(timezone.utc)
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Şifre sıfırlama bağlantısı geçersiz veya süresi dolmuş.",
+        )
+
+    db_user.hashed_password = hash_password(request.new_password)
+    db_user.password_reset_token_hash = None
+    db_user.password_reset_expires_at = None
+    db.commit()
+
+    return {"message": "Şifren başarıyla güncellendi."}
 
 '''
 (satır 238-264 çalışma mantığı)
@@ -463,6 +716,39 @@ def get_me(
         "role": current_user.role,
         "created_at": current_user.created_at
     }
+
+@app.delete("/api/auth/me")
+def delete_my_account(
+    request: AccountDeleteRequest,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    if not verify_password(request.password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=401,
+            detail="Şifre yanlış.",
+        )
+
+    if current_user.role == "ADMIN":
+        other_admin_count = (
+            db.query(UserModel)
+            .filter(
+                UserModel.role == "ADMIN",
+                UserModel.id != current_user.id,
+            )
+            .count()
+        )
+
+        if other_admin_count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Sistemde başka bir admin hesabı olmadan bu hesabı silemezsin.",
+            )
+
+    db.delete(current_user)
+    db.commit()
+
+    return {"message": "Hesabın silindi."}
 
 @app.get("/api/admin/test")
 def admin_test(
