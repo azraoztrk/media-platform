@@ -1,6 +1,6 @@
-# Media Space
+# NewsTrack
 
-Media Space, RSS kaynaklarından haberleri alıp kategorilere ayıran; kullanıcıların haberleri arayıp okuyabildiği bir haber platformu projesidir.
+NewsTrack, RSS kaynaklarından haberleri alıp kategorilere ayıran; kullanıcıların haberleri arayıp okuyabildiği bir haber platformu projesidir.
 
 ## Özellikler
 
